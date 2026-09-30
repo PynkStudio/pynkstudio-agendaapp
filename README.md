@@ -43,7 +43,7 @@ for (const b of await agenda.claimDueReminders({ leadMinutes: 20 })) {
 }
 ```
 
-Dettagli in [docs/03-features/link-ospite-ed-email.md](docs/03-features/link-ospite-ed-email.md).
+Se il sito usa strumenti di analisi, non lasciare il token nell'URL della pagina: fallo passare da una route che lo sposta in un cookie httpOnly. Dettagli e schema in [docs/03-features/link-ospite-ed-email.md](docs/03-features/link-ospite-ed-email.md).
 
 ## Installazione
 

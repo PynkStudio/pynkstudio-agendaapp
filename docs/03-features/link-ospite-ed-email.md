@@ -51,13 +51,22 @@ Nel template: un bottone ben visibile («Entra nella videocall») e una riga che
 
 ## La pagina dietro il link
 
-L'app crea la route (es. `/call/[bookingId]`) che:
+### Non lasciare il token nell'URL della pagina
 
-1. legge `bookingId` e `t`;
-2. opzionalmente verifica subito con `agenda.verifyManageToken(bookingId, t)` e `agenda.getBooking(bookingId)` per mostrare data e argomento, o un messaggio se annullata;
-3. rende `AgendaVideoCall` con un `getAccess` che fa `POST` al handler `videoToken` con `{ bookingId, token: t }`.
+Se la pagina carica strumenti di analisi (GA4, Meta Pixel, pixel pubblicitari), questi registrano l'**URL completo**, token compreso: la credenziale finirebbe a terzi. Schema consigliato:
 
-Deve essere **noindex** e con `referrer: no-referrer`, perché l'URL contiene la credenziale.
+1. `guestUrl` punta a una **route server di ingresso**, es. `/call/[bookingId]/enter?t=…`;
+2. la route verifica il token (`agenda.verifyManageToken`), lo salva in un **cookie httpOnly** (`Secure`, `SameSite=Lax`) e risponde con un redirect 303 verso l'URL pulito `/call/[bookingId]`, con `Referrer-Policy: no-referrer`;
+3. la pagina legge il token dal cookie lato server e lo passa al componente client (non all'URL).
+
+La route di ingresso non esegue JavaScript, quindi nessun tracker vede il token. Il link resta inoltrabile: chi lo apre su un altro dispositivo riceve il cookie lì.
+
+### Cosa fa la pagina
+
+1. legge il token (dal cookie) e verifica con `agenda.verifyManageToken(bookingId, token)` e `agenda.getBooking(bookingId)` per mostrare data e argomento, o un messaggio se annullata;
+2. rende `AgendaVideoCall` con un `getAccess` che fa `POST` al handler `videoToken` con `{ bookingId, token }`.
+
+Deve essere **noindex**. Se un'app non usa nessun tracker può leggere il token direttamente dall'URL, ma lo schema a cookie resta preferibile.
 
 ## Il token
 

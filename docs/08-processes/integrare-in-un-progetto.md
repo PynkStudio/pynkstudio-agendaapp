@@ -39,7 +39,8 @@ Lo scope lo decide l'app per ogni richiesta (`{ scope }`).
 ## 6. Pagine
 
 - Prenotazione: `useAgendaBooking` o `AgendaBookingWidget`.
-- **Pagina ospite** all'URL di `guestUrl`: noindex, no-referrer, `AgendaVideoCall` con `getAccess` verso `videoToken` passando `token`.
+- **Route di ingresso** all'URL di `guestUrl`: sposta il token in un cookie httpOnly e reindirizza all'URL pulito (i tracker non devono vedere il token, vedi [[link-ospite-ed-email]]).
+- **Pagina ospite**: noindex, token letto dal cookie, `AgendaVideoCall` con `getAccess` verso `videoToken` passando `token`.
 - Pagina staff: `AgendaVideoCall` con `getAccess` senza token (autenticato da `authorizeHost`).
 - Agenda staff: tabella/calendario costruiti su `hostList`/`hostUpdate`.
 
@@ -53,7 +54,7 @@ Server come in [[livekit-self-hosted]], con webhook verso la route del punto 5.
 
 ## 9. Collaudo
 
-1. Prenota uno slot → controlla riga in `agenda_bookings` ed **email con il link**.
+1. Prenota uno slot → controlla riga in `agenda_bookings` ed **email con il link**; aprendolo, l'URL finale nella barra non deve contenere il token.
 2. Riprova lo stesso slot → 409.
 3. Apri il link troppo presto → messaggio con l'orario di apertura.
 4. Entra come ospite e come staff → audio/video in entrambe le direzioni.
