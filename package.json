@@ -1,0 +1,83 @@
+{
+  "name": "@pynkstudio/agendaapp",
+  "version": "0.1.0",
+  "description": "Reusable agenda and video call package: bookable slots, bookings, reminders and LiveKit video rooms.",
+  "private": false,
+  "type": "module",
+  "main": "./dist/core/index.js",
+  "types": "./dist/core/index.d.ts",
+  "exports": {
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./http": {
+      "types": "./dist/http/index.d.ts",
+      "import": "./dist/http/index.js"
+    },
+    "./video/server": {
+      "types": "./dist/video/server.d.ts",
+      "import": "./dist/video/server.js"
+    },
+    "./video/react": {
+      "types": "./dist/video/react.d.ts",
+      "import": "./dist/video/react.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./migrations/*": "./migrations/*"
+  },
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PynkStudio/pynkstudio-agendaapp.git"
+  },
+  "license": "UNLICENSED",
+  "peerDependencies": {
+    "@livekit/components-react": "^2.9.0",
+    "livekit-client": "^2.20.0",
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "peerDependenciesMeta": {
+    "@livekit/components-react": {
+      "optional": true
+    },
+    "livekit-client": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@livekit/components-react": "^2.9.24",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "livekit-client": "^2.22.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
+  }
+}

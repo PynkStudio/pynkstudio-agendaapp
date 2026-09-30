@@ -1,0 +1,27 @@
+name: agenda-livekit
+
+# LiveKit SFU + Caddy per il TLS del segnale (wss://).
+# network_mode host: il media WebRTC usa migliaia di porte UDP, la NAT di
+# Docker le gestirebbe male. Serve un host con IP pubblico (VPS), non un tunnel.
+
+services:
+  livekit:
+    image: livekit/livekit-server:${LIVEKIT_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    network_mode: host
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      LIVEKIT_DOMAIN: ${LIVEKIT_DOMAIN:?LIVEKIT_DOMAIN is required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+volumes:
+  caddy_data:
