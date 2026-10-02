@@ -16,7 +16,7 @@ Vault Obsidian del pacchetto `@pynkstudio/agendaapp`. Apri la **root della repo*
 |---|---|
 | `00-vision/` | [[panoramica]] |
 | `02-architecture/` | [[architettura]], [[modello-dati]] |
-| `03-features/` | [[prenotazione-e-disponibilita]], [[videocall]], [[link-ospite-ed-email]], [[promemoria]] |
+| `03-features/` | [[prenotazione-e-disponibilita]], [[staff-e-capienza]], [[calendari-collegati]], [[impostazioni]], [[videocall]], [[link-ospite-ed-email]], [[promemoria]] |
 | `04-decisions/` | [[04-decisions/README\|indice ADR]] |
 | `05-roadmap/` | [[backlog]] |
 | `06-integrations/` | [[livekit-self-hosted]], [[supabase]] |

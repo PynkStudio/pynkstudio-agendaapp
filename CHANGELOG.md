@@ -2,6 +2,21 @@
 
 Formato: [SemVer](https://semver.org). Ogni voce indica anche i passi richiesti ai progetti che usano il pacchetto.
 
+## 0.3.0 — 2026-10-02
+
+Staff, capienza, calendari collegati, festività, pagina impostazioni ([ADR-0006](docs/04-decisions/adr-0006-staff-capienza-calendari.md)).
+
+- **Capienza**: `capacity` per fascia in modalità posti; `AgendaSlot.remaining`.
+- **Staff**: `staffing: { mode: "hosts", hostIds }`; un orario ha tanti posti quante persone libere (orari personali, prenotazioni, blocchi, calendari collegati); assegnazione alla persona meno occupata; `booking.hostId`.
+- **Calendari collegati** (sola lettura): Google (OAuth), Microsoft 365 / Outlook (OAuth), Apple iCloud e altri CalDAV (password specifica per app), link ICS. Credenziali cifrate; stato di errore visibile; cache.
+- **Festività**: `holidays: ["IT"]` (festività nazionali italiane, Pasqua calcolata).
+- **Impostazioni a database** (`agenda_event_types`) sopra i default del codice; staff in `agenda_hosts`.
+- **Pagina impostazioni**: `@pynkstudio/agendaapp/settings/react` + `settings/styles.css`, testi it/en.
+- Handler nuovi: `settingsGet`, `settingsSaveEventType`, `settingsUpdateHost`, `calendarsManage`, `calendarOAuthStart`, `calendarOAuthCallback`; opzione `listStaff`.
+- Dipendenza nuova: `ical.js` (server).
+
+**Per i progetti (breaking):** applicare `migrations/0002_hosts_settings_calendars.sql` **prima** di aggiornare (le query leggono `host_id`); `agenda.eventType()` e `listBookableDays()` ora restituiscono Promise; `addBlock` senza `calendar` chiude tutto lo scope (`*`). Facoltativo: `calendars` nella config e `AGENDA_CREDENTIALS_KEY`.
+
 ## 0.2.0 — 2026-10-02
 
 Interfaccia della call stile Meet ([ADR-0005](docs/04-decisions/adr-0005-interfaccia-call-stile-meet.md)).

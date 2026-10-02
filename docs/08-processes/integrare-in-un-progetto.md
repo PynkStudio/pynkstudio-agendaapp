@@ -9,7 +9,7 @@ Checklist completa. Gli esempi usano Next.js App Router; con altri host cambia s
 
 ## 2. Database
 
-Applica `migrations/0001_agenda_schema.sql` (copiandola tra le migration del progetto). Verifica che esistano le tre tabelle e il vincolo `agenda_bookings_no_overlap`.
+Applica `migrations/0001_agenda_schema.sql` e `migrations/0002_hosts_settings_calendars.sql` (copiandole tra le migration del progetto). Verifica che esistano le tre tabelle e il vincolo `agenda_bookings_no_overlap`.
 
 ## 3. Variabili d'ambiente
 
@@ -44,6 +44,12 @@ Lo scope lo decide l'app per ogni richiesta (`{ scope }`).
 - Pagina staff: `AgendaVideoCall` con `displayName` = nome e cognome dell'utente (lo stesso di `authorizeHost`) e `getAccess` senza token.
 - Tema: sovrascrivi le variabili `--agv-*` con i colori dell'app.
 - Agenda staff: tabella/calendario costruiti su `hostList`/`hostUpdate`.
+
+## 6b. Impostazioni, staff e calendari (facoltativo)
+
+- Pagina impostazioni con `AgendaSettingsPanel` e gli handler `settingsGet`, `settingsSaveEventType`, `settingsUpdateHost`, `calendarsManage`, `calendarOAuthStart`, `calendarOAuthCallback` ([[impostazioni]]).
+- Opzione `listStaff` degli handler (o `agenda.settings.syncHosts`) per tenere allineato lo staff.
+- `calendars` nella config del server, app OAuth Google/Microsoft e `AGENDA_CREDENTIALS_KEY` ([[calendari-collegati]]).
 
 ## 7. Promemoria
 

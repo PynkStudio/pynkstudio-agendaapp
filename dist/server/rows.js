@@ -1,10 +1,11 @@
-export const BOOKING_COLUMNS = "id, scope, event_type, calendar, status, starts_at, ends_at, location, name, email, phone, topic, guest_timezone, answers, source, video_room, video_started_at, video_ended_at, reminder_sent_at, cancelled_at, cancel_reason, created_at";
+export const BOOKING_COLUMNS = "id, scope, event_type, calendar, host_id, status, starts_at, ends_at, location, name, email, phone, topic, guest_timezone, answers, source, video_room, video_started_at, video_ended_at, reminder_sent_at, cancelled_at, cancel_reason, created_at";
 export function toBooking(row) {
     return {
         id: row.id,
         scope: row.scope,
         eventType: row.event_type,
         calendar: row.calendar,
+        hostId: row.host_id ?? null,
         status: row.status,
         startsAt: row.starts_at,
         endsAt: row.ends_at,

@@ -1,13 +1,14 @@
 import type { AgendaBooking, BookingStatus, LocationKind } from "../core/types.js";
 
 export const BOOKING_COLUMNS =
-  "id, scope, event_type, calendar, status, starts_at, ends_at, location, name, email, phone, topic, guest_timezone, answers, source, video_room, video_started_at, video_ended_at, reminder_sent_at, cancelled_at, cancel_reason, created_at";
+  "id, scope, event_type, calendar, host_id, status, starts_at, ends_at, location, name, email, phone, topic, guest_timezone, answers, source, video_room, video_started_at, video_ended_at, reminder_sent_at, cancelled_at, cancel_reason, created_at";
 
 export type BookingRow = {
   id: string;
   scope: string;
   event_type: string;
   calendar: string;
+  host_id?: string | null;
   status: BookingStatus;
   starts_at: string;
   ends_at: string;
@@ -34,6 +35,7 @@ export function toBooking(row: BookingRow): AgendaBooking {
     scope: row.scope,
     eventType: row.event_type,
     calendar: row.calendar,
+    hostId: row.host_id ?? null,
     status: row.status,
     startsAt: row.starts_at,
     endsAt: row.ends_at,

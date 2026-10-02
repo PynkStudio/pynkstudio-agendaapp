@@ -1,3 +1,4 @@
+import type { CalendarsConfig } from "../calendars/types.js";
 import type { AgendaBooking, AgendaEventType } from "../core/types.js";
 import type { LivekitCredentials, LivekitWebhookEvent } from "../video/livekit.js";
 /**
@@ -11,6 +12,9 @@ export type AgendaTables = {
     bookings: string;
     blocks: string;
     videoEvents: string;
+    hosts: string;
+    eventTypes: string;
+    connections: string;
 };
 export declare const DEFAULT_TABLES: AgendaTables;
 export type AgendaVideoConfig = LivekitCredentials & {
@@ -56,8 +60,14 @@ export type AgendaLogger = {
 export type AgendaServerConfig = {
     /** Service-role client, or null when the host is not configured (every call then fails soft). */
     db: () => AgendaDb | null;
-    /** Event types offered by a scope. Same list for every scope when an array is given. */
+    /**
+     * Default event types of a scope. Same list for every scope when an array is
+     * given. Event types saved from the settings page (`saveEventType`) override
+     * the default with the same id.
+     */
     eventTypes: readonly AgendaEventType[] | ((scope: string) => readonly AgendaEventType[]);
+    /** External calendars (Google, Microsoft, CalDAV/iCloud, ICS). Omit to disable. */
+    calendars?: CalendarsConfig | null;
     /**
      * Secret used to derive per-booking guest tokens. Tokens are derived, not
      * stored, so a reminder sent days later can rebuild the same join link.

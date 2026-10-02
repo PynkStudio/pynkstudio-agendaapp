@@ -1,6 +1,8 @@
+import { isHoliday } from "./holidays.js";
 import { addDaysISO, formatClock, isDateISO, isValidTimeZone, parseClock, weekdayOfDate, zonedDateISO, zonedWallClockToUtc, } from "./time.js";
 export const DEFAULT_LOOKAHEAD_DAYS = 14;
 export const DEFAULT_CALENDAR = "default";
+export const MAX_CAPACITY = 50;
 /** Throws on a malformed event type, so a bad host config fails at startup, not at booking time. */
 export function assertValidEventType(eventType) {
     const where = `event type "${eventType.id}"`;
@@ -16,6 +18,12 @@ export function assertValidEventType(eventType) {
     for (const w of eventType.weekly) {
         if (parseClock(w.end) <= parseClock(w.start))
             throw new Error(`${where}: window ${w.start}-${w.end} is empty`);
+        if (w.capacity !== undefined && !(Number.isInteger(w.capacity) && w.capacity >= 1 && w.capacity <= MAX_CAPACITY)) {
+            throw new Error(`${where}: capacity must be an integer between 1 and ${MAX_CAPACITY}`);
+        }
+    }
+    if (eventType.staffing?.mode === "hosts" && !Array.isArray(eventType.staffing.hostIds)) {
+        throw new Error(`${where}: staffing.hostIds must be an array`);
     }
     for (const d of eventType.closedDates ?? []) {
         if (!isDateISO(d))
@@ -30,6 +38,8 @@ export function candidateSlots(eventType, dateISO) {
     if (!isDateISO(dateISO))
         return [];
     if (eventType.closedDates?.includes(dateISO))
+        return [];
+    if (isHoliday(eventType.holidays, dateISO))
         return [];
     const weekday = weekdayOfDate(dateISO);
     const step = eventType.slotStepMinutes ?? eventType.durationMinutes;
@@ -47,6 +57,7 @@ export function candidateSlots(eventType, dateISO) {
             seen.add(start.getTime());
             out.push({
                 time: formatClock(m),
+                minute: m,
                 start,
                 end: new Date(start.getTime() + eventType.durationMinutes * 60000),
             });
@@ -79,16 +90,63 @@ function isOpenForBooking(eventType, start, now) {
     const notice = (eventType.minNoticeMinutes ?? 0) * 60000;
     return start.getTime() > now.getTime() + notice;
 }
-/** Slots of a date with their availability. Empty when the date is outside the bookable range. */
-export function slotsForDate(eventType, dateISO, busy = [], now = new Date()) {
+function covers(windows, weekday, startMinute, endMinute) {
+    return windows.some((w) => w.day === weekday && parseClock(w.start) <= startMinute && endMinute <= parseClock(w.end));
+}
+/** Highest parallel capacity declared by the weekly windows (seats mode). */
+export function maxCapacity(eventType) {
+    return eventType.weekly.reduce((max, w) => Math.max(max, w.capacity ?? 1), 1);
+}
+/**
+ * Seats for an event type staffed without calendars: seat k is open in the
+ * windows whose capacity is at least k. Seat 1 keeps the plain calendar id,
+ * so bookings made before capacities existed stay on it.
+ */
+export function seatResources(eventType) {
+    const base = calendarOf(eventType);
+    return Array.from({ length: maxCapacity(eventType) }, (_, i) => ({
+        id: i === 0 ? base : `${base}#${i + 1}`,
+        hostId: null,
+        windows: eventType.weekly.filter((w) => (w.capacity ?? 1) >= i + 1),
+    }));
+}
+/** Resources able to take a booking for this candidate (hours cover it, nothing busy). */
+function freeFor(eventType, weekday, c, resources) {
+    const end = c.minute + eventType.durationMinutes;
+    return resources.filter((r) => covers(r.windows, weekday, c.minute, end) && !overlapsBusy(c.start, c.end, r.busy, eventType.bufferMinutes));
+}
+/**
+ * Slots of a date with how many places are left. A slot is available while
+ * at least one resource (seat or host) is free for its whole duration.
+ * Empty when the date is outside the bookable range.
+ */
+export function availableSlots(eventType, dateISO, resources, now = new Date()) {
     if (!bookableDays(eventType, now).includes(dateISO))
         return [];
-    return candidateSlots(eventType, dateISO).map((c) => ({
-        time: c.time,
-        startUtc: c.start.toISOString(),
-        endUtc: c.end.toISOString(),
-        available: isOpenForBooking(eventType, c.start, now) && !overlapsBusy(c.start, c.end, busy, eventType.bufferMinutes),
-    }));
+    const weekday = weekdayOfDate(dateISO);
+    return candidateSlots(eventType, dateISO).map((c) => {
+        const remaining = isOpenForBooking(eventType, c.start, now) ? freeFor(eventType, weekday, c, resources).length : 0;
+        return {
+            time: c.time,
+            startUtc: c.start.toISOString(),
+            endUtc: c.end.toISOString(),
+            available: remaining > 0,
+            remaining,
+        };
+    });
+}
+/** Resources free at exactly `start`, or [] when `start` is not an offered slot. */
+export function freeResourcesAt(eventType, start, resources) {
+    const dateISO = zonedDateISO(eventType.timezone, start);
+    const c = candidateSlots(eventType, dateISO).find((x) => x.start.getTime() === start.getTime());
+    return c ? freeFor(eventType, weekdayOfDate(dateISO), c, resources) : [];
+}
+/**
+ * Single-calendar view, kept for callers that only know a busy list: every
+ * seat sees the same busy intervals.
+ */
+export function slotsForDate(eventType, dateISO, busy = [], now = new Date()) {
+    return availableSlots(eventType, dateISO, seatResources(eventType).map((r) => ({ ...r, busy })), now);
 }
 /**
  * Server-side check that `start` is exactly one of the offered slots and still

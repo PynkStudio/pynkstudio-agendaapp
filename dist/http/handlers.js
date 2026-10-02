@@ -4,6 +4,7 @@
  * tenant or project the request is for) and authenticates its own staff;
  * everything else is here.
  */
+import { HOLIDAY_CALENDARS } from "../core/holidays.js";
 const STANDARD_KEYS = new Set([
     "eventType",
     "startUtc",
@@ -38,6 +39,7 @@ export function serializeBooking(b) {
     return {
         id: b.id,
         eventType: b.eventType,
+        hostId: b.hostId,
         status: b.status,
         startsAt: b.startsAt,
         endsAt: b.endsAt,
@@ -76,14 +78,14 @@ export function createAgendaHandlers(config) {
             const eventTypeId = url.searchParams.get("event");
             const date = url.searchParams.get("date");
             const a = agenda();
-            const et = a.eventType(scope, eventTypeId);
+            const et = await a.eventType(scope, eventTypeId);
             if (!et)
                 return json({ error: "unknown_event_type" }, 404);
             if (!date) {
                 return json({
                     eventType: { id: et.id, title: et.title, durationMinutes: et.durationMinutes, location: et.location },
                     timezone: et.timezone,
-                    days: a.listBookableDays(scope, et.id),
+                    days: await a.listBookableDays(scope, et.id),
                 });
             }
             const result = await a.getAvailability({ scope, eventTypeId: et.id, date });
@@ -225,6 +227,115 @@ export function createAgendaHandlers(config) {
             if (!booking)
                 return json({ error: "not_found" }, 404);
             return json({ ok: true, booking: serializeBooking(booking) });
+        },
+        /**
+         * Staff — settings page data: `GET` → `{ eventTypes, hosts, connections, providers, holidayCalendars }`.
+         */
+        async settingsGet(request, { scope }) {
+            if (!(await host(request, scope)))
+                return json({ error: "unauthorized" }, 401);
+            const a = agenda();
+            const hosts = config.listStaff ? await a.settings.syncHosts(scope, await config.listStaff(scope)) : await a.settings.hosts(scope);
+            const [eventTypes, connections] = await Promise.all([a.settings.eventTypes(scope), a.calendars.list(scope)]);
+            return json({
+                eventTypes,
+                hosts,
+                connections,
+                providers: a.calendars.providers(),
+                holidayCalendars: Object.entries(HOLIDAY_CALENDARS).map(([code, c]) => ({ code, label: c.label })),
+            });
+        },
+        /**
+         * Staff — `PUT { id, ...fields }` saves an event type's settings;
+         * `PUT { id, reset: true }` goes back to the code default.
+         */
+        async settingsSaveEventType(request, { scope }) {
+            if (!(await host(request, scope)))
+                return json({ error: "unauthorized" }, 401);
+            const body = await readJson(request);
+            const id = str(body?.id);
+            if (!body || !id)
+                return json({ error: "invalid_request" }, 400);
+            const a = agenda();
+            if (body.reset === true) {
+                await a.settings.resetEventType(scope, id);
+                return json({ ok: true, eventType: await a.eventType(scope, id) });
+            }
+            const result = await a.settings.saveEventType(scope, id, body);
+            if ("error" in result)
+                return json({ error: result.error }, result.error === "unknown_event_type" ? 404 : 400);
+            return json({ ok: true, eventType: result });
+        },
+        /** Staff — `PATCH { hostId, active?, weekly? }` (weekly `null` = same hours as the event type). */
+        async settingsUpdateHost(request, { scope }) {
+            if (!(await host(request, scope)))
+                return json({ error: "unauthorized" }, 401);
+            const body = await readJson(request);
+            const hostId = str(body?.hostId);
+            if (!body || !hostId)
+                return json({ error: "invalid_request" }, 400);
+            const updated = await agenda().settings.updateHost(scope, hostId, { active: body.active, weekly: body.weekly });
+            return updated ? json({ ok: true, host: updated }) : json({ error: "not_found" }, 404);
+        },
+        /**
+         * Staff — `POST { hostId, provider: "caldav", username, password, server? }`
+         * or `{ hostId, provider: "ics", url, label? }` connects a calendar;
+         * `DELETE { id }` disconnects one.
+         */
+        async calendarsManage(request, { scope }) {
+            if (!(await host(request, scope)))
+                return json({ error: "unauthorized" }, 401);
+            const body = await readJson(request);
+            const calendars = agenda().calendars;
+            if (request.method === "DELETE") {
+                const id = str(body?.id);
+                if (!id)
+                    return json({ error: "invalid_request" }, 400);
+                return (await calendars.remove(scope, id)) ? json({ ok: true }) : json({ error: "db_error" }, 500);
+            }
+            const hostId = str(body?.hostId);
+            const provider = str(body?.provider);
+            if (!hostId || !calendars.enabled())
+                return json({ error: hostId ? "calendars_disabled" : "invalid_request" }, hostId ? 503 : 400);
+            const hosts = await agenda().settings.hosts(scope);
+            if (!hosts.some((h) => h.id === hostId))
+                return json({ error: "unknown_host" }, 404);
+            const result = provider === "caldav"
+                ? await calendars.connectCalDav(scope, hostId, { server: str(body?.server), username: str(body?.username), password: str(body?.password) })
+                : provider === "ics"
+                    ? await calendars.connectIcs(scope, hostId, { url: str(body?.url), label: str(body?.label) })
+                    : { ok: false, error: "unsupported_provider" };
+            return result.ok ? json({ ok: true, connection: result.connection }) : json({ error: result.error }, 400);
+        },
+        /** Staff — `GET ?hostId&provider=google|microsoft&returnTo` → redirect to the provider's consent screen. */
+        async calendarOAuthStart(request, { scope }) {
+            if (!(await host(request, scope)))
+                return json({ error: "unauthorized" }, 401);
+            const url = new URL(request.url);
+            const provider = url.searchParams.get("provider");
+            const hostId = url.searchParams.get("hostId") ?? "";
+            if (provider !== "google" && provider !== "microsoft")
+                return json({ error: "unsupported_provider" }, 400);
+            const calendars = agenda().calendars;
+            if (!calendars.providers()[provider])
+                return json({ error: "provider_not_configured" }, 503);
+            const hosts = await agenda().settings.hosts(scope);
+            if (!hosts.some((h) => h.id === hostId))
+                return json({ error: "unknown_host" }, 404);
+            // Only same-origin paths: the callback must not become an open redirect.
+            const returnTo = url.searchParams.get("returnTo") ?? "/";
+            const safeReturn = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/";
+            return Response.redirect(calendars.startOAuth(scope, hostId, provider, safeReturn), 302);
+        },
+        /** OAuth callback for a provider: stores the connection, then redirects to `returnTo?calendar=connected|error`. */
+        async calendarOAuthCallback(request, provider) {
+            const url = new URL(request.url);
+            const result = await agenda().calendars.finishOAuth(provider, url.searchParams.get("code"), url.searchParams.get("state"));
+            const back = new URL(result.returnTo ?? "/", url.origin);
+            back.searchParams.set("calendar", result.ok ? "connected" : "error");
+            if (!result.ok)
+                back.searchParams.set("reason", result.error);
+            return Response.redirect(back.toString(), 303);
         },
         /** LiveKit webhook receiver. Needs the raw body, so mount it on its own route. */
         async livekitWebhook(request) {

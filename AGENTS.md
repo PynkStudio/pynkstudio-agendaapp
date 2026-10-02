@@ -28,8 +28,10 @@ deploy files. Examples use `example.com` and generic scopes.
 
 ## Browser / Server Split
 
-- `src/core/**` and `src/react/**` must stay importable in the browser: no `node:*`, no DB access.
-- `src/server/**`, `src/http/**`, `src/video/livekit.ts`, `src/video/server.ts` are server-only.
+- `src/core/**`, `src/react/**` and `src/settings/**` must stay importable in the browser: no `node:*`, no DB access.
+- `src/server/**`, `src/http/**`, `src/calendars/**`, `src/video/livekit.ts`, `src/video/server.ts` are server-only.
+- Calendar providers use `fetch` only (no SDKs). Stored credentials are always encrypted (`src/calendars/crypto.ts`) and never
+  returned to the browser. A provider failure must not break availability: mark the connection `error` and go on.
 - Use explicit `.js` extensions on relative imports: `dist/` is loaded directly by Node ESM.
 
 ## Invariants
@@ -48,7 +50,7 @@ deploy files. Examples use `example.com` and generic scopes.
 ## Public API
 
 Treat as public: `/core`, `/server`, `/http`, `/video/server`, `/video/react`, `/video/styles.css` (class names
-and `--agv-*` variables), `/react`, `/migrations/*`.
+and `--agv-*` variables), `/settings/react`, `/settings/styles.css` (`--ags-*`), `/react`, `/migrations/*`.
 Do not remove or rename exports without a major version bump. Prefer optional additions.
 
 ## Database
@@ -81,6 +83,9 @@ Update them **in the same commit** as the code:
 | --- | --- |
 | Public API (exports, config fields, handler contracts) | `README.md`, `docs/02-architecture/architettura.md`, the feature doc |
 | Slots, bookings, cancellation | `docs/03-features/prenotazione-e-disponibilita.md` |
+| Capacity, seats, hosts, holidays | `docs/03-features/staff-e-capienza.md` |
+| Calendar providers, OAuth | `docs/03-features/calendari-collegati.md` |
+| Settings panel / endpoints | `docs/03-features/impostazioni.md` |
 | Video access, tokens, webhook | `docs/03-features/videocall.md` |
 | Guest link / what emails must contain | `docs/03-features/link-ospite-ed-email.md` |
 | Reminders | `docs/03-features/promemoria.md` |

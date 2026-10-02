@@ -4,7 +4,9 @@ Idee e limiti noti. Nessuna data: non è una roadmap impegnata.
 
 | Voce | Note |
 |---|---|
-| Più membri dello staff con agende proprie | Oggi si ottiene dichiarando un `calendar` per persona e un tipo di appuntamento ciascuno; manca l'assegnazione automatica |
+| Scrivere l'appuntamento nel calendario della persona assegnata | Oggi i calendari sono solo letti ([[calendari-collegati]]); servono scope di scrittura (Google `calendar.events`, Microsoft `Calendars.ReadWrite`, CalDAV PUT) |
+| Fuso orario per persona | Oggi gli orari personali sono nel fuso del tipo di appuntamento |
+| Scelta della persona da parte del cliente | Oggi l'assegnazione è automatica (la meno occupata) |
 | Riprogrammazione da parte dell'ospite | Oggi: annulla e riprenota |
 | Ritentativo dei promemoria falliti | Oggi marcati prima dell'invio ([[promemoria]]) |
 | Gestione stanze (espelli, chiudi, registra) | Richiede API server LiveKit ([[adr-0002-livekit-senza-sdk-server]]) |

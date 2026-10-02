@@ -2,7 +2,7 @@
 
 ## Tipi di appuntamento
 
-Dichiarati nel codice dell'app (`eventTypes`), per scope. Campi (`AgendaEventType` in `src/core/types.ts`):
+Dichiarati nel codice dell'app (`eventTypes`), per scope, come **valori predefiniti**: dalla pagina impostazioni ([[impostazioni]]) si modificano e il server usa la versione salvata. `agenda.eventType()` è asincrono. Campi (`AgendaEventType` in `src/core/types.ts`):
 
 | Campo | Default | Significato |
 |---|---|---|
@@ -11,11 +11,13 @@ Dichiarati nel codice dell'app (`eventTypes`), per scope. Campi (`AgendaEventTyp
 | `durationMinutes` | — | durata |
 | `slotStepMinutes` | = durata | distanza tra due inizi possibili |
 | `timezone` | — | fuso IANA in cui sono espresse le finestre |
-| `weekly` | — | finestre `{ day: 0-6, start: "HH:MM", end: "HH:MM" }`; più finestre per giorno ammesse |
+| `weekly` | — | finestre `{ day: 0-6, start: "HH:MM", end: "HH:MM", capacity? }`; più finestre per giorno ammesse; `capacity` = posti contemporanei in modalità posti |
 | `bufferMinutes` | 0 | pausa obbligatoria dopo ogni appuntamento dello stesso calendario |
 | `minNoticeMinutes` | 0 | preavviso minimo |
 | `lookaheadDays` | 14 | quanti giorni **con almeno una finestra** offrire, da oggi |
 | `closedDates` | — | date chiuse |
+| `holidays` | — | calendari festivi da chiudere, es. `["IT"]` ([[staff-e-capienza]]) |
+| `staffing` | `{ mode: "seats" }` | posti manuali o persone dello staff ([[staff-e-capienza]]) |
 | `location` | — | `video`, `phone`, `in_person` |
 | `calendar` | `default` | tipi che condividono una persona/stanza devono condividerlo |
 
@@ -36,8 +38,8 @@ La config è validata al primo uso (`assertValidEventType`): un fuso inesistente
 1. tipo di appuntamento esistente nello scope;
 2. nome presente, email valida (salvata in minuscolo); campi troncati a lunghezze massime;
 3. `isBookableStart`: l'inizio deve coincidere **esattamente** con uno slot offerto, futuro, oltre il preavviso e nei giorni prenotabili. L'orario del client non è mai creduto;
-4. nessun blocco sovrapposto;
-5. insert: il vincolo del DB rifiuta le sovrapposizioni con altre prenotazioni.
+4. scelta della risorsa: tra i posti/le persone liberi per lo slot (prenotazioni, blocchi, calendari collegati), la meno occupata;
+5. insert su quella risorsa: se il vincolo del DB la rifiuta (presa nel frattempo) si prova la successiva; finite le risorse → `slot_taken`.
 
 Errori: `unknown_event_type` (404), `invalid_input` con `field` (400), `invalid_slot` (400), `slot_taken` (409), `db_error` (500), `unconfigured` (503).
 

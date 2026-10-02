@@ -1,6 +1,6 @@
 {
   "name": "@pynkstudio/agendaapp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Reusable agenda and video call package: bookable slots, bookings, reminders and LiveKit video rooms.",
   "private": false,
   "type": "module",
@@ -32,6 +32,11 @@
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js"
     },
+    "./settings/react": {
+      "types": "./dist/settings/react.d.ts",
+      "import": "./dist/settings/react.js"
+    },
+    "./settings/styles.css": "./dist/settings/styles.css",
     "./migrations/*": "./migrations/*"
   },
   "files": [
@@ -39,7 +44,7 @@
     "migrations"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json && cp src/video/styles.css dist/video/styles.css",
+    "build": "rm -rf dist && tsc -p tsconfig.json && cp src/video/styles.css dist/video/styles.css && cp src/settings/styles.css dist/settings/styles.css",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
@@ -86,5 +91,8 @@
   },
   "sideEffects": [
     "*.css"
-  ]
+  ],
+  "dependencies": {
+    "ical.js": "^2.2.1"
+  }
 }

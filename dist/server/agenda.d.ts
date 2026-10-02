@@ -1,6 +1,8 @@
-import type { AgendaBooking, AgendaEventType, AgendaSlot, BookingStatus } from "../core/types.js";
+import type { AgendaBooking, AgendaEventType, AgendaSlot, BookingStatus, BusyInterval } from "../core/types.js";
 import { type LivekitWebhookEvent } from "../video/livekit.js";
 import { type AgendaServerConfig } from "./config.js";
+/** Block that closes every resource of a scope. */
+export declare const ALL_CALENDARS = "*";
 export type GuestInput = {
     name: string;
     email: string;
@@ -81,8 +83,47 @@ export type WebhookResult = {
 };
 export type AgendaServer = ReturnType<typeof createAgendaServer>;
 export declare function createAgendaServer(config: AgendaServerConfig): {
-    eventType: (scope: string, id?: string | null) => AgendaEventType | null;
-    eventTypes: (scope: string) => readonly AgendaEventType[];
+    eventType: (scope: string, id?: string | null) => Promise<AgendaEventType | null>;
+    eventTypes: (scope: string) => Promise<AgendaEventType[]>;
+    /** Settings page backend: event types, hosts. */
+    settings: {
+        eventTypes: (scope: string) => Promise<AgendaEventType[]>;
+        hosts: (scope: string) => Promise<import("../core/types.js").AgendaHost[]>;
+        saveEventType(scope: string, id: string, input: Record<string, unknown>): Promise<AgendaEventType | {
+            error: string;
+        }>;
+        resetEventType(scope: string, id: string): Promise<boolean>;
+        syncHosts(scope: string, people: ReadonlyArray<{
+            externalId: string;
+            name: string;
+            email?: string | null;
+        }>): Promise<import("../core/types.js").AgendaHost[]>;
+        updateHost(scope: string, id: string, patch: {
+            active?: boolean;
+            weekly?: unknown;
+        }): Promise<import("../core/types.js").AgendaHost | null>;
+    };
+    /** Connected calendars (Google, Microsoft, CalDAV, ICS). */
+    calendars: {
+        enabled: () => boolean;
+        providers(): Record<import("./index.js").CalendarProvider, boolean>;
+        list(scope: string, hostId?: string): Promise<import("./index.js").CalendarConnection[]>;
+        startOAuth(scope: string, hostId: string, provider: "google" | "microsoft", returnTo?: string): string;
+        finishOAuth(provider: "google" | "microsoft", code: string | null, stateToken: string | null): Promise<import("./index.js").ConnectResult & {
+            returnTo?: string;
+        }>;
+        connectCalDav(scope: string, hostId: string, input: {
+            server?: string;
+            username: string;
+            password: string;
+        }): Promise<import("./index.js").ConnectResult>;
+        connectIcs(scope: string, hostId: string, input: {
+            url: string;
+            label?: string;
+        }): Promise<import("./index.js").ConnectResult>;
+        remove(scope: string, id: string): Promise<boolean>;
+        busyByHost(scope: string, hostIds: readonly string[], from: Date, to: Date): Promise<Map<string, BusyInterval[]>>;
+    };
     manageTokenFor: (bookingId: string) => string;
     verifyManageToken: (bookingId: string, token: string | null | undefined) => boolean;
     /** The guest link for a booking, e.g. to put it again in a reminder. Null without `guestUrl`. */
@@ -92,7 +133,7 @@ export declare function createAgendaServer(config: AgendaServerConfig): {
     roomFor: (bookingId: string) => string;
     getBooking: (id: string) => Promise<AgendaBooking | null>;
     /** Dates that can be offered in a date picker. */
-    listBookableDays(scope: string, eventTypeId?: string | null): string[];
+    listBookableDays(scope: string, eventTypeId?: string | null): Promise<string[]>;
     getAvailability(input: {
         scope: string;
         eventTypeId?: string | null;

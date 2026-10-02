@@ -12,7 +12,9 @@ Il pacchetto possiede **comportamento e struttura**; l'app possiede **identità 
 | `/react` | browser | `src/react/` | `useAgendaBooking`, `AgendaBookingWidget` |
 | `/video/react` | browser | `src/video/react.tsx`, `lobby.tsx`, `room.tsx`, `icons.tsx`, `avatar.tsx`, `labels.ts` | `AgendaVideoCall`, lobby e stanza stile Meet (unici file che importano LiveKit client) |
 | `/video/styles.css` | browser | `src/video/styles.css` | stile della call, variabili `--agv-*` |
-| `/server` | server | `src/server/` | `createAgendaServer`, config, mapping righe |
+| `/settings/react` | browser | `src/settings/` | `AgendaSettingsPanel`, testi it/en |
+| `/settings/styles.css` | browser | `src/settings/styles.css` | stile delle impostazioni, variabili `--ags-*` |
+| `/server` | server | `src/server/`, `src/calendars/` | `createAgendaServer`, impostazioni e staff (`settings.ts`), calendari esterni (`src/calendars/`: OAuth, Google, Microsoft, CalDAV, ICS, cifratura) |
 | `/http` | server | `src/http/` | `createAgendaHandlers` |
 | `/video/server` | server | `src/video/livekit.ts` | JWT LiveKit e verifica webhook su `node:crypto` |
 | `/migrations/*` | — | `migrations/` | SQL |
@@ -38,7 +40,7 @@ flowchart LR
 ## Flusso di prenotazione
 
 1. `GET availability` senza data → giorni prenotabili (nel fuso del tipo di appuntamento).
-2. `GET availability?date=` → slot con `available`, calcolati togliendo prenotazioni confermate e blocchi.
+2. `GET availability?date=` → slot con `available` e `remaining`: per ogni risorsa (posto o persona) si tolgono prenotazioni, blocchi e occupati dei calendari collegati; il numero di risorse libere è la capienza dello slot ([[staff-e-capienza]]).
 3. `POST book` → il server **ricontrolla** che l'orario sia uno slot valido ([[prenotazione-e-disponibilita]]), controlla i blocchi, inserisce. Il vincolo di esclusione del DB rifiuta le sovrapposizioni (409).
 4. Hook `onBookingCreated` con `booking`, `guestUrl`, `extra` → l'app manda la conferma ([[link-ospite-ed-email]]).
 
@@ -51,4 +53,4 @@ flowchart LR
 
 ## Configurazione
 
-`AgendaServerConfig` (`src/server/config.ts`): `db`, `eventTypes`, `signingSecret`, `video`, `guestUrl`, `guestDisplayName`, `hooks`, `tables`, `logger`, `now`. Gli hook sono attesi dopo la scrittura e i loro errori sono registrati senza annullare la prenotazione.
+`AgendaServerConfig` (`src/server/config.ts`): `db`, `eventTypes` (default, sovrascrivibili dalle impostazioni), `signingSecret`, `video`, `calendars`, `guestUrl`, `guestDisplayName`, `hooks`, `tables`, `logger`, `now`. Gli hook sono attesi dopo la scrittura e i loro errori sono registrati senza annullare la prenotazione.

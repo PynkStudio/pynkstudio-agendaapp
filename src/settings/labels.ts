@@ -1,0 +1,262 @@
+export type AgendaSettingsLabels = {
+  loading: string;
+  loadError: string;
+  eventType: string;
+  sectionAppointment: string;
+  title: string;
+  duration: string;
+  step: string;
+  stepHint: string;
+  buffer: string;
+  minNotice: string;
+  lookahead: string;
+  minutes: string;
+  hours: string;
+  days: string;
+  location: string;
+  locationVideo: string;
+  locationPhone: string;
+  locationInPerson: string;
+  sectionStaffing: string;
+  staffingSeats: string;
+  staffingSeatsHint: string;
+  staffingHosts: string;
+  staffingHostsHint: string;
+  noHosts: string;
+  sectionHours: string;
+  hoursHintSeats: string;
+  hoursHintHosts: string;
+  weekdays: readonly string[];
+  closed: string;
+  from: string;
+  to: string;
+  places: string;
+  addWindow: string;
+  remove: string;
+  sectionClosures: string;
+  closedDates: string;
+  addDate: string;
+  noClosedDates: string;
+  save: string;
+  saving: string;
+  saved: string;
+  saveError: string;
+  resetDefault: string;
+  sectionTeam: string;
+  teamHint: string;
+  active: string;
+  inactive: string;
+  personalHours: string;
+  sameHours: string;
+  customHours: string;
+  saveHours: string;
+  calendars: string;
+  noCalendars: string;
+  connectGoogle: string;
+  connectMicrosoft: string;
+  connectApple: string;
+  connectIcs: string;
+  notConfigured: string;
+  appleId: string;
+  applePassword: string;
+  appleHelp: string;
+  caldavServer: string;
+  icsUrl: string;
+  icsLabel: string;
+  icsHelp: string;
+  connect: string;
+  connecting: string;
+  cancel: string;
+  disconnect: string;
+  statusOk: string;
+  statusError: string;
+  lastSync: string;
+  connected: string;
+  connectFailed: string;
+  providerNames: Record<"google" | "microsoft" | "caldav" | "ics", string>;
+  /** Server error codes → sentences. Unknown codes are shown as they are. */
+  errors: Record<string, string>;
+};
+
+export const SETTINGS_LABELS: Record<"it" | "en", AgendaSettingsLabels> = {
+  it: {
+    loading: "Carico le impostazioni…",
+    loadError: "Impossibile caricare le impostazioni.",
+    eventType: "Tipo di appuntamento",
+    sectionAppointment: "Appuntamento",
+    title: "Nome",
+    duration: "Durata",
+    step: "Intervallo tra gli orari proposti",
+    stepHint: "Vuoto = uguale alla durata",
+    buffer: "Pausa dopo ogni appuntamento",
+    minNotice: "Preavviso minimo",
+    lookahead: "Giorni prenotabili in anticipo",
+    minutes: "min",
+    hours: "ore",
+    days: "giorni",
+    location: "Modalità",
+    locationVideo: "Videocall",
+    locationPhone: "Telefono",
+    locationInPerson: "Di persona",
+    sectionStaffing: "Chi riceve le prenotazioni",
+    staffingSeats: "Posti manuali",
+    staffingSeatsHint: "Decidi tu quanti appuntamenti contemporanei accettare in ogni fascia oraria, senza collegare calendari.",
+    staffingHosts: "Persone dello staff",
+    staffingHostsHint:
+      "Un orario è prenotabile se almeno una persona selezionata è libera: tanti posti quante persone libere. Contano i loro orari, le prenotazioni e i calendari collegati.",
+    noHosts: "Nessuna persona dello staff.",
+    sectionHours: "Orari settimanali",
+    hoursHintSeats: "Fasce in cui si può prenotare e quanti appuntamenti contemporanei per fascia.",
+    hoursHintHosts: "Fasce in cui si può prenotare. Ogni persona può restringerle con i propri orari.",
+    weekdays: ["Domenica", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato"],
+    closed: "Chiuso",
+    from: "Dalle",
+    to: "Alle",
+    places: "Posti",
+    addWindow: "Aggiungi fascia",
+    remove: "Rimuovi",
+    sectionClosures: "Festività e chiusure",
+    closedDates: "Giorni di chiusura",
+    addDate: "Aggiungi giorno",
+    noClosedDates: "Nessun giorno di chiusura.",
+    save: "Salva impostazioni",
+    saving: "Salvo…",
+    saved: "Impostazioni salvate.",
+    saveError: "Salvataggio non riuscito",
+    resetDefault: "Ripristina i valori predefiniti",
+    sectionTeam: "Staff e calendari",
+    teamHint: "Collega il tuo calendario: gli orari in cui sei occupato non verranno proposti ai clienti.",
+    active: "Riceve prenotazioni",
+    inactive: "Non riceve prenotazioni",
+    personalHours: "Orari personali",
+    sameHours: "Come l'appuntamento",
+    customHours: "Orari miei",
+    saveHours: "Salva orari",
+    calendars: "Calendari collegati",
+    noCalendars: "Nessun calendario collegato.",
+    connectGoogle: "Google Calendar",
+    connectMicrosoft: "Outlook / Microsoft 365",
+    connectApple: "Apple iCloud",
+    connectIcs: "Link ICS",
+    notConfigured: "Non configurato sul server",
+    appleId: "ID Apple (email)",
+    applePassword: "Password specifica per app",
+    appleHelp: "Creala su account.apple.com → Accesso e sicurezza → Password specifiche per le app. Non usare la password dell'ID Apple.",
+    caldavServer: "Server CalDAV (vuoto = iCloud)",
+    icsUrl: "Indirizzo del calendario (.ics)",
+    icsLabel: "Nome (facoltativo)",
+    icsHelp: "Funziona con qualsiasi calendario che offre un indirizzo segreto o pubblico in formato iCal.",
+    connect: "Collega",
+    connecting: "Collego…",
+    cancel: "Annulla",
+    disconnect: "Scollega",
+    statusOk: "Attivo",
+    statusError: "Errore di lettura",
+    lastSync: "Ultima lettura",
+    connected: "Calendario collegato.",
+    connectFailed: "Collegamento non riuscito",
+    providerNames: { google: "Google", microsoft: "Microsoft", caldav: "Apple / CalDAV", ics: "ICS" },
+    errors: {
+      unreachable: "il calendario non risponde o il link non è valido",
+      auth_failed: "credenziali rifiutate (serve una password specifica per app)",
+      no_calendars: "nessun calendario di eventi trovato nell'account",
+      invalid_url: "indirizzo non valido",
+      missing_credentials: "inserisci email e password",
+      denied: "accesso non concesso",
+      exchange_failed: "il provider ha rifiutato il collegamento",
+      invalid_state: "link scaduto, riprova",
+      calendars_disabled: "calendari non configurati sul server",
+      unauthorized: "sessione scaduta, accedi di nuovo",
+    },
+  },
+  en: {
+    loading: "Loading settings…",
+    loadError: "Could not load the settings.",
+    eventType: "Appointment type",
+    sectionAppointment: "Appointment",
+    title: "Name",
+    duration: "Duration",
+    step: "Interval between offered times",
+    stepHint: "Empty = same as duration",
+    buffer: "Break after each appointment",
+    minNotice: "Minimum notice",
+    lookahead: "Bookable days ahead",
+    minutes: "min",
+    hours: "hours",
+    days: "days",
+    location: "Mode",
+    locationVideo: "Video call",
+    locationPhone: "Phone",
+    locationInPerson: "In person",
+    sectionStaffing: "Who takes bookings",
+    staffingSeats: "Manual places",
+    staffingSeatsHint: "Choose how many simultaneous appointments each time window accepts, without connecting calendars.",
+    staffingHosts: "Team members",
+    staffingHostsHint:
+      "A time can be booked when at least one selected person is free: as many places as free people. Their hours, bookings and connected calendars count.",
+    noHosts: "No team members.",
+    sectionHours: "Weekly hours",
+    hoursHintSeats: "Windows open for booking and how many simultaneous appointments each accepts.",
+    hoursHintHosts: "Windows open for booking. Each person can narrow them with their own hours.",
+    weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    closed: "Closed",
+    from: "From",
+    to: "To",
+    places: "Places",
+    addWindow: "Add window",
+    remove: "Remove",
+    sectionClosures: "Holidays and closures",
+    closedDates: "Closed days",
+    addDate: "Add day",
+    noClosedDates: "No closed days.",
+    save: "Save settings",
+    saving: "Saving…",
+    saved: "Settings saved.",
+    saveError: "Could not save",
+    resetDefault: "Restore defaults",
+    sectionTeam: "Team and calendars",
+    teamHint: "Connect your calendar: times you are busy will not be offered to clients.",
+    active: "Takes bookings",
+    inactive: "Does not take bookings",
+    personalHours: "Personal hours",
+    sameHours: "Same as the appointment",
+    customHours: "My own hours",
+    saveHours: "Save hours",
+    calendars: "Connected calendars",
+    noCalendars: "No calendar connected.",
+    connectGoogle: "Google Calendar",
+    connectMicrosoft: "Outlook / Microsoft 365",
+    connectApple: "Apple iCloud",
+    connectIcs: "ICS link",
+    notConfigured: "Not configured on the server",
+    appleId: "Apple ID (email)",
+    applePassword: "App-specific password",
+    appleHelp: "Create it at account.apple.com → Sign-In and Security → App-Specific Passwords. Do not use your Apple ID password.",
+    caldavServer: "CalDAV server (empty = iCloud)",
+    icsUrl: "Calendar address (.ics)",
+    icsLabel: "Name (optional)",
+    icsHelp: "Works with any calendar that offers a secret or public address in iCal format.",
+    connect: "Connect",
+    connecting: "Connecting…",
+    cancel: "Cancel",
+    disconnect: "Disconnect",
+    statusOk: "Active",
+    statusError: "Read error",
+    lastSync: "Last read",
+    connected: "Calendar connected.",
+    connectFailed: "Connection failed",
+    providerNames: { google: "Google", microsoft: "Microsoft", caldav: "Apple / CalDAV", ics: "ICS" },
+    errors: {
+      unreachable: "the calendar does not answer or the link is not valid",
+      auth_failed: "credentials refused (an app-specific password is needed)",
+      no_calendars: "no event calendar found in the account",
+      invalid_url: "invalid address",
+      missing_credentials: "enter email and password",
+      denied: "access not granted",
+      exchange_failed: "the provider refused the connection",
+      invalid_state: "link expired, try again",
+      calendars_disabled: "calendars are not configured on the server",
+      unauthorized: "session expired, sign in again",
+    },
+  },
+};

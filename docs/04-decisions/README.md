@@ -9,3 +9,4 @@ Una decisione rilevante = un file `adr-NNNN-titolo.md` dal modello [[adr-templat
 | 0003 | [[adr-0003-sovrapposizioni-vietate-dal-database]] — vincolo di esclusione Postgres |
 | 0004 | [[adr-0004-token-ospite-derivato]] — link ospite derivato con HMAC, non salvato |
 | 0005 | [[adr-0005-interfaccia-call-stile-meet]] — interfaccia della call propria, stile Meet, al posto dei prefab LiveKit |
+| 0006 | [[adr-0006-staff-capienza-calendari]] — capienza come insieme di risorse; calendari esterni in sola lettura |

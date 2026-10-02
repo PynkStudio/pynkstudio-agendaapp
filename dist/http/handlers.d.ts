@@ -17,6 +17,15 @@ export type AgendaHandlersConfig = {
     /** Guest fields the booking form must carry besides name and email. */
     requiredFields?: ReadonlyArray<"phone" | "topic">;
     /**
+     * The app's staff for a scope. When given, the settings endpoint mirrors it
+     * into the package's hosts each time it is read.
+     */
+    listStaff?: (scope: string) => Promise<ReadonlyArray<{
+        externalId: string;
+        name: string;
+        email?: string | null;
+    }>>;
+    /**
      * Return the guest link in the booking response (from the server's
      * `guestUrl`). Off by default: the link is a credential, and email is the
      * safer channel for it.
@@ -30,6 +39,7 @@ type Ctx = {
 export declare function serializeBooking(b: AgendaBooking): {
     id: string;
     eventType: string;
+    hostId: string | null;
     status: BookingStatus;
     startsAt: string;
     endsAt: string;
@@ -66,6 +76,27 @@ export declare function createAgendaHandlers(config: AgendaHandlersConfig): {
     hostList(request: Request, { scope }: Ctx): Promise<Response>;
     /** Staff: `PATCH { id, action: "cancel" | "complete" | "no_show", reason? }`. */
     hostUpdate(request: Request, { scope }: Ctx): Promise<Response>;
+    /**
+     * Staff — settings page data: `GET` → `{ eventTypes, hosts, connections, providers, holidayCalendars }`.
+     */
+    settingsGet(request: Request, { scope }: Ctx): Promise<Response>;
+    /**
+     * Staff — `PUT { id, ...fields }` saves an event type's settings;
+     * `PUT { id, reset: true }` goes back to the code default.
+     */
+    settingsSaveEventType(request: Request, { scope }: Ctx): Promise<Response>;
+    /** Staff — `PATCH { hostId, active?, weekly? }` (weekly `null` = same hours as the event type). */
+    settingsUpdateHost(request: Request, { scope }: Ctx): Promise<Response>;
+    /**
+     * Staff — `POST { hostId, provider: "caldav", username, password, server? }`
+     * or `{ hostId, provider: "ics", url, label? }` connects a calendar;
+     * `DELETE { id }` disconnects one.
+     */
+    calendarsManage(request: Request, { scope }: Ctx): Promise<Response>;
+    /** Staff — `GET ?hostId&provider=google|microsoft&returnTo` → redirect to the provider's consent screen. */
+    calendarOAuthStart(request: Request, { scope }: Ctx): Promise<Response>;
+    /** OAuth callback for a provider: stores the connection, then redirects to `returnTo?calendar=connected|error`. */
+    calendarOAuthCallback(request: Request, provider: "google" | "microsoft"): Promise<Response>;
     /** LiveKit webhook receiver. Needs the raw body, so mount it on its own route. */
     livekitWebhook(request: Request): Promise<Response>;
 };
