@@ -30,6 +30,7 @@ function setup(nowIso = "2026-10-05T06:00:00Z") {
     signingSecret: "a-very-long-signing-secret",
     video,
     guestUrl: (b, t) => `https://example.test/call/${b.id}?t=${t}`,
+    guestDisplayName: (b) => (b.answers.company ? `${b.name} · ${b.answers.company}` : b.name),
     hooks: { onBookingCreated, onBookingCancelled },
     now: () => now,
     logger: { warn: () => {} },
@@ -131,6 +132,8 @@ describe("video", () => {
     if (!access.ok) return;
     const claims = verifyHs256(access.token, video.apiSecret, new Date("2026-10-05T08:15:00Z"));
     expect(claims).toMatchObject({ sub: `guest:${r.booking.id}`, name: "Ada Lovelace", video: { room: access.room, roomAdmin: false } });
+    expect(access.displayName).toBe("Ada Lovelace");
+    if (host.ok) expect(host.displayName).toBe("Staff");
 
     expect(await agenda.issueVideoAccess({ ...asGuest, manageToken: "bad" })).toMatchObject({ ok: false, error: "forbidden" });
     setNow("2026-10-05T09:30:00Z");
@@ -160,6 +163,21 @@ describe("video", () => {
     expect(stored?.status).toBe("completed");
     expect(stored?.videoStartedAt).not.toBeNull();
     expect(await agenda.handleLivekitWebhook("{}", "garbage")).toEqual({ ok: false, error: "unauthorized" });
+  });
+});
+
+describe("display names", () => {
+  it("lets the host shape the guest name, e.g. with the company", async () => {
+    const { agenda } = setup();
+    const r = await agenda.createBooking({
+      scope: "acme",
+      eventTypeId: "call-20",
+      startUtc: "2026-10-05T08:20:00.000Z",
+      guest,
+      answers: { company: "Analytical Engines Ltd" },
+    });
+    if (!r.ok) throw new Error("booking failed");
+    expect(agenda.guestDisplayName(r.booking)).toBe("Ada Lovelace · Analytical Engines Ltd");
   });
 });
 

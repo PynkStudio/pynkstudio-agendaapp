@@ -55,10 +55,10 @@ Si installa dal tarball di un tag GitHub (con `dist/` già compilato):
 
 Non usare `github:PynkStudio/pynkstudio-agendaapp#v0.1.0` su Vercel: npm può risolverlo via SSH e fallire.
 
-Per la videocall servono anche le peer dependency e il foglio di stile LiveKit (da importare una volta nella pagina della call):
+Per la videocall servono anche le peer dependency LiveKit; il foglio di stile è del pacchetto (`import "@pynkstudio/agendaapp/video/styles.css"` nella pagina della call):
 
 ```bash
-npm install livekit-client @livekit/components-react @livekit/components-styles
+npm install livekit-client @livekit/components-react
 ```
 
 ## Avvio rapido
@@ -101,7 +101,7 @@ export const agendaHttp = createAgendaHandlers({
 export const GET = (req: Request) => agendaHttp.availability(req, { scope: "my-project" });
 ```
 
-4. **Interfaccia** — `useAgendaBooking` per il flusso di prenotazione, `AgendaVideoCall` per la pagina della call.
+4. **Interfaccia** — `useAgendaBooking` per il flusso di prenotazione, `AgendaVideoCall` per la pagina della call: lobby «Pronto a partecipare?» e stanza stile Meet (griglia, 1:1 con riquadro personale, presentazione schermo, microfono/videocamera con scelta dispositivi, chat, persone). Dettagli in [docs/03-features/videocall.md](docs/03-features/videocall.md).
 5. **Server LiveKit** — `deploy/livekit/` (vedi [docs/06-integrations/livekit-self-hosted.md](docs/06-integrations/livekit-self-hosted.md)).
 
 La guida completa, passo per passo, è [docs/08-processes/integrare-in-un-progetto.md](docs/08-processes/integrare-in-un-progetto.md).
@@ -113,6 +113,7 @@ La guida completa, passo per passo, è [docs/08-processes/integrare-in-un-proget
 | `@pynkstudio/agendaapp/core` | sì | tipi, fusi orari, calcolo slot |
 | `@pynkstudio/agendaapp/react` | sì | `useAgendaBooking`, `AgendaBookingWidget` |
 | `@pynkstudio/agendaapp/video/react` | sì | `AgendaVideoCall` (richiede le peer LiveKit) |
+| `@pynkstudio/agendaapp/video/styles.css` | sì | stile della call (variabili `--agv-*`) |
 | `@pynkstudio/agendaapp/server` | no | `createAgendaServer` |
 | `@pynkstudio/agendaapp/http` | no | `createAgendaHandlers` |
 | `@pynkstudio/agendaapp/video/server` | no | `createLivekitToken`, `verifyLivekitWebhook` |
@@ -140,5 +141,7 @@ npm run typecheck
 npm run test
 npm run build
 ```
+
+Per provare la videocall senza un'app: `npm run playground` (serve un LiveKit locale, vedi [docs/08-processes/playground-video.md](docs/08-processes/playground-video.md)).
 
 `dist/` è committato perché le installazioni da tarball non compilano. Regole per chi modifica il codice (persone e IA): [AGENTS.md](AGENTS.md). Versioni: [CHANGELOG.md](CHANGELOG.md).

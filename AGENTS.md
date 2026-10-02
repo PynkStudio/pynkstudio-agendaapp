@@ -21,7 +21,10 @@ deploy files. Examples use `example.com` and generic scopes.
   If something project-specific is needed, add an optional field with a default.
 - Supabase is typed structurally (`AgendaDb`) and injected. Do not add `@supabase/supabase-js` as a dependency.
 - LiveKit server logic stays on `node:crypto`. The React video UI uses `@livekit/components-react` and
-  `livekit-client` as **optional peer dependencies**; nothing outside `src/video/react.tsx` may import them.
+  `livekit-client` as **optional peer dependencies**; only the React files in `src/video/` (`react.tsx`,
+  `lobby.tsx`, `room.tsx`) may import them.
+- The call UI ships neutral defaults only, all behind `--agv-*` custom properties in `src/video/styles.css`.
+  Never hard-code a brand color there.
 
 ## Browser / Server Split
 
@@ -44,7 +47,8 @@ deploy files. Examples use `example.com` and generic scopes.
 
 ## Public API
 
-Treat as public: `/core`, `/server`, `/http`, `/video/server`, `/video/react`, `/react`, `/migrations/*`.
+Treat as public: `/core`, `/server`, `/http`, `/video/server`, `/video/react`, `/video/styles.css` (class names
+and `--agv-*` variables), `/react`, `/migrations/*`.
 Do not remove or rename exports without a major version bump. Prefer optional additions.
 
 ## Database
@@ -64,6 +68,9 @@ for e in core/index server/index http/index video/server; do node --input-type=m
 ```
 
 For runtime or route changes, also verify one consumer app builds against the new tag.
+
+For changes to the call UI, try it in the playground (`npm run playground`, see
+`docs/08-processes/playground-video.md`) with at least two participants.
 
 ## Documentation (Obsidian vault)
 

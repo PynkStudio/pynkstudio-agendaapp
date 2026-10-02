@@ -20,7 +20,7 @@ Vault Obsidian del pacchetto `@pynkstudio/agendaapp`. Apri la **root della repo*
 | `04-decisions/` | [[04-decisions/README\|indice ADR]] |
 | `05-roadmap/` | [[backlog]] |
 | `06-integrations/` | [[livekit-self-hosted]], [[supabase]] |
-| `08-processes/` | [[integrare-in-un-progetto]], [[rilascio-versione]] |
+| `08-processes/` | [[integrare-in-un-progetto]], [[rilascio-versione]], [[playground-video]] |
 | `templates/` | [[adr-template]], [[feature-template]] |
 
 ## Regole di scrittura

@@ -188,7 +188,13 @@ export function createAgendaHandlers(config: AgendaHandlersConfig) {
           : 409;
         return json({ error: result.error, opensAt: result.opensAt }, status);
       }
-      return json({ serverUrl: result.serverUrl, token: result.token, room: result.room, role: result.role });
+      return json({
+        serverUrl: result.serverUrl,
+        token: result.token,
+        room: result.room,
+        role: result.role,
+        displayName: result.displayName,
+      });
     },
 
     /** `POST { bookingId, token, reason? }` — the guest cancels their own booking. */

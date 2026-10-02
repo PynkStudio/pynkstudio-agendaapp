@@ -84,6 +84,11 @@ export type AgendaServerConfig = {
    * `videoToken` handler. Example: `(b, t) => \`https://example.com/call/${b.id}?t=${t}\``.
    */
   guestUrl?: (booking: AgendaBooking, manageToken: string) => string;
+  /**
+   * Name the guest shows to the others in the call. Defaults to the name left
+   * in the booking form; hosts typically add the company, e.g. from `answers`.
+   */
+  guestDisplayName?: (booking: AgendaBooking) => string;
   tables?: Partial<AgendaTables>;
   hooks?: AgendaHooks;
   logger?: AgendaLogger;

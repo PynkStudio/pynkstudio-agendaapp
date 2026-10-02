@@ -8,3 +8,4 @@ Una decisione rilevante = un file `adr-NNNN-titolo.md` dal modello [[adr-templat
 | 0002 | [[adr-0002-livekit-senza-sdk-server]] — token e webhook LiveKit su `node:crypto` |
 | 0003 | [[adr-0003-sovrapposizioni-vietate-dal-database]] — vincolo di esclusione Postgres |
 | 0004 | [[adr-0004-token-ospite-derivato]] — link ospite derivato con HMAC, non salvato |
+| 0005 | [[adr-0005-interfaccia-call-stile-meet]] — interfaccia della call propria, stile Meet, al posto dei prefab LiveKit |

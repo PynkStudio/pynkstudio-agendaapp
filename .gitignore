@@ -7,3 +7,4 @@ node_modules
 *.tgz
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
+playground/.out

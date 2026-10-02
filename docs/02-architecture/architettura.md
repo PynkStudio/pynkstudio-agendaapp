@@ -10,7 +10,8 @@ Il pacchetto possiede **comportamento e struttura**; l'app possiede **identità 
 |---|---|---|---|
 | `/core` | browser + server | `src/core/` | tipi, fusi (`time.ts`), slot (`availability.ts`) |
 | `/react` | browser | `src/react/` | `useAgendaBooking`, `AgendaBookingWidget` |
-| `/video/react` | browser | `src/video/react.tsx` | `AgendaVideoCall` (unico file che importa LiveKit client) |
+| `/video/react` | browser | `src/video/react.tsx`, `lobby.tsx`, `room.tsx`, `icons.tsx`, `avatar.tsx`, `labels.ts` | `AgendaVideoCall`, lobby e stanza stile Meet (unici file che importano LiveKit client) |
+| `/video/styles.css` | browser | `src/video/styles.css` | stile della call, variabili `--agv-*` |
 | `/server` | server | `src/server/` | `createAgendaServer`, config, mapping righe |
 | `/http` | server | `src/http/` | `createAgendaHandlers` |
 | `/video/server` | server | `src/video/livekit.ts` | JWT LiveKit e verifica webhook su `node:crypto` |
@@ -45,9 +46,9 @@ flowchart LR
 
 1. L'ospite apre `guestUrl` → la pagina dell'app chiama `videoToken` con `bookingId` + `token`.
 2. Il server verifica il token, lo stato e la finestra oraria e firma un JWT LiveKit per la stanza `agenda-<id>`.
-3. `AgendaVideoCall` mostra la prova dispositivi e si collega.
+3. `AgendaVideoCall` mostra la lobby (anteprima, dispositivi, nome fisso) e poi la stanza a schermo intero ([[videocall]]).
 4. LiveKit invia i webhook → eventi salvati, `video_started_at`, stato «completed» a stanza chiusa. Vedi [[videocall]].
 
 ## Configurazione
 
-`AgendaServerConfig` (`src/server/config.ts`): `db`, `eventTypes`, `signingSecret`, `video`, `guestUrl`, `hooks`, `tables`, `logger`, `now`. Gli hook sono attesi dopo la scrittura e i loro errori sono registrati senza annullare la prenotazione.
+`AgendaServerConfig` (`src/server/config.ts`): `db`, `eventTypes`, `signingSecret`, `video`, `guestUrl`, `guestDisplayName`, `hooks`, `tables`, `logger`, `now`. Gli hook sono attesi dopo la scrittura e i loro errori sono registrati senza annullare la prenotazione.

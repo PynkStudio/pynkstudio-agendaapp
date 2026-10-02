@@ -38,9 +38,50 @@ Da configurare nel server LiveKit verso la route dell'app montata con `livekitWe
 
 ## Interfaccia
 
-`AgendaVideoCall` (`/video/react`): prova di microfono/videocamera (`PreJoin`), poi `LiveKitRoom` + `VideoConference`. Il token viene chiesto con `getAccess()` al clic su «entra», quindi è sempre fresco. Etichette sovrascrivibili (`labels`, incluso `tooEarly(opensAt)`).
+Dalla 0.2.0 l'interfaccia è propria del pacchetto, nello stile delle app di riunione più diffuse (vedi [[adr-0005-interfaccia-call-stile-meet]]). File: `src/video/react.tsx`, `lobby.tsx`, `room.tsx`, `styles.css`.
 
-Stile: l'app importa `@livekit/components-styles` e personalizza con le variabili `--lk-*`. Il pacchetto non porta colori.
+```tsx
+import "@pynkstudio/agendaapp/video/styles.css";
+import { AgendaVideoCall } from "@pynkstudio/agendaapp/video/react";
+
+<AgendaVideoCall
+  displayName="Ada Lovelace · Analytical Engines"   // nome mostrato in lobby
+  title="Call conoscitiva · 20 min"                  // lobby + barra in basso
+  getAccess={() => fetch(...).then((r) => r.json())} // handler videoToken
+  labels={{ join: "Partecipa", ... }}                // testi nella lingua dell'app
+/>
+```
+
+### Lobby («Pronto a partecipare?»)
+
+- Anteprima della videocamera (specchiata), indicatore del livello del microfono.
+- Pulsanti tondi microfono / videocamera; scelta di microfono, altoparlante e videocamera.
+- **Nome fisso**: «Parteciperai come …». Non è modificabile dall'utente: il nome che vedono gli altri è quello scritto nel token dal server.
+- Se il browser blocca i dispositivi: avviso e pulsanti spenti; si può entrare comunque e riprovare dalla call.
+
+### Call
+
+| Situazione | Layout |
+|---|---|
+| Da solo | il proprio riquadro + «In attesa che altri partecipino» |
+| In due | l'altra persona a tutto schermo, il proprio riquadro in basso a destra |
+| Tre o più | griglia automatica |
+| Qualcuno presenta | schermo condiviso grande, partecipanti in una colonna laterale |
+
+Ogni riquadro: video o avatar con iniziali (colore stabile per nome), nome, microfono spento, bordo quando parla.
+
+Barra in basso: ora e titolo · microfono e videocamera con menu dispositivi (freccia) · condividi schermo (se il browser lo supporta) · esci (rosso) · Persone (con conteggio) · Chat (con non letti). Scorciatoie: Ctrl/⌘+D microfono, Ctrl/⌘+E videocamera. Avvisi: riconnessione, dispositivo non disponibile, audio bloccato dal browser (pulsante per attivarlo).
+
+Di default si apre **a schermo intero** con un portale su `document.body` (prop `fullscreen`, default `true`), così nessun antenato con `transform` la intrappola.
+
+### Nomi
+
+- Ospite: `guestDisplayName(booking)` nella config del server (default: il nome della prenotazione). Esempio: `${name} · ${answers.company}`. Il server lo restituisce anche come `displayName` dal handler `videoToken`; per la lobby la pagina lo legge con `agenda.guestDisplayName(booking)`.
+- Staff: il `name` restituito da `authorizeHost` (consigliato: nome e cognome dell'utente).
+
+### Stile
+
+Importare una volta `@pynkstudio/agendaapp/video/styles.css`. Colori neutri, tutti sovrascrivibili con le variabili `--agv-*` su `.agv` (o un antenato): `--agv-bg`, `--agv-surface`, `--agv-surface-2`, `--agv-panel`, `--agv-panel-text`, `--agv-text`, `--agv-muted`, `--agv-accent`, `--agv-accent-text`, `--agv-danger`, `--agv-speaking`, `--agv-radius`, `--agv-font`, `--agv-z`. Non serve più `@livekit/components-styles`.
 
 ## Da verificare
 

@@ -1,51 +1,59 @@
 "use client";
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useState } from "react";
-import { LiveKitRoom, PreJoin, VideoConference } from "@livekit/components-react";
-export const DEFAULT_VIDEO_LABELS = {
-    join: "Join call",
-    mic: "Microphone",
-    camera: "Camera",
-    name: "Name",
-    connecting: "Connecting…",
-    left: "You left the call.",
-    rejoin: "Join again",
-    tooEarly: (opensAt) => `The room opens at ${opensAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}.`,
-    ended: "This call has ended.",
-    cancelled: "This appointment was cancelled.",
-    forbidden: "This link is not valid.",
-    generic: "Could not join the call. Please try again.",
-};
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { LiveKitRoom } from "@livekit/components-react";
+import { DEFAULT_VIDEO_LABELS } from "./labels.js";
+import { AgendaLobby } from "./lobby.js";
+import { AgendaMeetRoom } from "./room.js";
+export { DEFAULT_VIDEO_LABELS } from "./labels.js";
+export { AgendaLobby } from "./lobby.js";
+export { AgendaMeetRoom } from "./room.js";
+function messageFor(e, l) {
+    switch (e.error) {
+        case "too_early":
+            return e.opensAt ? l.tooEarly(new Date(e.opensAt)) : l.generic;
+        case "ended":
+            return l.ended;
+        case "cancelled":
+            return l.cancelled;
+        case "forbidden":
+        case "not_found":
+            return l.forbidden;
+        default:
+            return l.generic;
+    }
+}
+function Fullscreen({ children }) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+        const previous = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = previous;
+        };
+    }, []);
+    return mounted ? createPortal(_jsx("div", { className: "agv-fullscreen", children: children }), document.body) : null;
+}
 /**
- * Device check, then the LiveKit prefab conference. Hosts must load
- * `@livekit/components-styles` once (e.g. in the page that renders this) and
- * may theme it through its `--lk-*` custom properties.
+ * Device check, then a Meet-style call: stage with grid / one-to-one / screen
+ * share layouts, bottom bar with microphone, camera, device menus, screen
+ * share and leave, people and chat panels. Import
+ * `@pynkstudio/agendaapp/video/styles.css` once and theme it with the
+ * `--agv-*` custom properties.
  */
 export function AgendaVideoCall(props) {
     const l = { ...DEFAULT_VIDEO_LABELS, ...props.labels };
-    const [phase, setPhase] = useState({ kind: "prejoin" });
-    const { getAccess, onLeave } = props;
-    function messageFor(e) {
-        switch (e.error) {
-            case "too_early":
-                return e.opensAt ? l.tooEarly(new Date(e.opensAt)) : l.generic;
-            case "ended":
-                return l.ended;
-            case "cancelled":
-                return l.cancelled;
-            case "forbidden":
-            case "not_found":
-                return l.forbidden;
-            default:
-                return l.generic;
-        }
-    }
+    const [phase, setPhase] = useState({ kind: "lobby" });
+    const fullscreen = props.fullscreen ?? true;
+    const className = `agv ${props.className ?? ""}`.trim();
     async function join(choices) {
         setPhase({ kind: "connecting" });
         try {
-            const access = await getAccess();
+            const access = await props.getAccess();
             if ("error" in access)
-                setPhase({ kind: "error", message: messageFor(access) });
+                setPhase({ kind: "error", message: messageFor(access, l) });
             else
                 setPhase({ kind: "live", access, choices });
         }
@@ -53,13 +61,18 @@ export function AgendaVideoCall(props) {
             setPhase({ kind: "error", message: l.generic });
         }
     }
-    const className = `ag-video ${props.className ?? ""}`.trim();
     if (phase.kind === "live") {
-        return (_jsx("div", { className: className, "data-lk-theme": "default", children: _jsx(LiveKitRoom, { serverUrl: phase.access.serverUrl, token: phase.access.token, connect: true, video: phase.choices.videoEnabled ? { deviceId: phase.choices.videoDeviceId } : false, audio: phase.choices.audioEnabled ? { deviceId: phase.choices.audioDeviceId } : false, onDisconnected: () => {
-                    setPhase({ kind: "left" });
-                    onLeave?.();
-                }, style: { height: "100%" }, children: _jsx(VideoConference, {}) }) }));
+        const { access, choices } = phase;
+        const room = (_jsx(LiveKitRoom, { serverUrl: access.serverUrl, token: access.token, connect: true, audio: choices.audioEnabled ? { deviceId: choices.audioDeviceId || undefined } : false, video: choices.videoEnabled ? { deviceId: choices.videoDeviceId || undefined } : false, options: {
+                adaptiveStream: true,
+                dynacast: true,
+                audioOutput: choices.audioOutputDeviceId ? { deviceId: choices.audioOutputDeviceId } : undefined,
+            }, onDisconnected: () => {
+                setPhase({ kind: "left" });
+                props.onLeave?.();
+            }, className: className, children: _jsx(AgendaMeetRoom, { labels: l, title: props.title }) }));
+        return fullscreen ? _jsx(Fullscreen, { children: room }) : room;
     }
-    return (_jsxs("div", { className: className, "data-lk-theme": "default", children: [phase.kind === "prejoin" && (_jsx(PreJoin, { defaults: { username: props.displayName ?? "" }, onSubmit: join, joinLabel: l.join, micLabel: l.mic, camLabel: l.camera, userLabel: l.name, persistUserChoices: false })), phase.kind === "connecting" && _jsx("p", { className: "ag-note", children: l.connecting }), (phase.kind === "left" || phase.kind === "error") && (_jsxs("div", { className: "ag-video-status", children: [_jsx("p", { className: "ag-note", children: phase.kind === "left" ? l.left : phase.message }), _jsx("button", { type: "button", className: "ag-submit", onClick: () => setPhase({ kind: "prejoin" }), children: l.rejoin })] }))] }));
+    return (_jsxs("div", { className: className, children: [(phase.kind === "lobby" || phase.kind === "connecting") && (_jsx(AgendaLobby, { displayName: props.displayName, title: props.title, labels: l, busy: phase.kind === "connecting", onJoin: join })), (phase.kind === "left" || phase.kind === "error") && (_jsxs("div", { className: "agv-status", children: [_jsx("p", { children: phase.kind === "left" ? l.left : phase.message }), _jsx("button", { type: "button", className: "agv-join", onClick: () => setPhase({ kind: "lobby" }), children: l.rejoin })] }))] }));
 }
 //# sourceMappingURL=react.js.map

@@ -1,46 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { LiveKitRoom, PreJoin, VideoConference } from "@livekit/components-react";
-import type { LocalUserChoices } from "@livekit/components-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { LiveKitRoom } from "@livekit/components-react";
 
-export type VideoAccess = { serverUrl: string; token: string };
+import { DEFAULT_VIDEO_LABELS, type AgendaVideoCallLabels } from "./labels.js";
+import { AgendaLobby, type LobbyChoices } from "./lobby.js";
+import { AgendaMeetRoom } from "./room.js";
+
+export { DEFAULT_VIDEO_LABELS, type AgendaVideoCallLabels } from "./labels.js";
+export { AgendaLobby, type LobbyChoices } from "./lobby.js";
+export { AgendaMeetRoom } from "./room.js";
+
+export type VideoAccess = { serverUrl: string; token: string; displayName?: string };
 
 export type VideoAccessError = {
   error: string;
   /** With `too_early`: ISO instant the room opens. */
   opensAt?: string;
-};
-
-export type AgendaVideoCallLabels = {
-  join: string;
-  mic: string;
-  camera: string;
-  name: string;
-  connecting: string;
-  left: string;
-  rejoin: string;
-  tooEarly: (opensAt: Date) => string;
-  ended: string;
-  cancelled: string;
-  forbidden: string;
-  generic: string;
-};
-
-export const DEFAULT_VIDEO_LABELS: AgendaVideoCallLabels = {
-  join: "Join call",
-  mic: "Microphone",
-  camera: "Camera",
-  name: "Name",
-  connecting: "Connecting…",
-  left: "You left the call.",
-  rejoin: "Join again",
-  tooEarly: (opensAt) =>
-    `The room opens at ${opensAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}.`,
-  ended: "This call has ended.",
-  cancelled: "This appointment was cancelled.",
-  forbidden: "This link is not valid.",
-  generic: "Could not join the call. Please try again.",
 };
 
 export type AgendaVideoCallProps = {
@@ -49,97 +26,119 @@ export type AgendaVideoCallProps = {
    * presses Join, so the token is always fresh.
    */
   getAccess: () => Promise<VideoAccess | VideoAccessError>;
-  displayName?: string;
+  /**
+   * Name shown in the lobby. The name the others see is the one in the
+   * token, set by the server: keep the two consistent (`agenda.guestDisplayName`
+   * for guests, the staff member's full name for hosts).
+   */
+  displayName: string;
+  /** Meeting title, shown in the lobby and in the bottom bar. */
+  title?: string;
   labels?: Partial<AgendaVideoCallLabels>;
   onLeave?: () => void;
+  /**
+   * Open the call over the whole viewport, portalled to `document.body` so
+   * that transformed ancestors cannot trap it. Default true.
+   */
+  fullscreen?: boolean;
   className?: string;
 };
 
 type Phase =
-  | { kind: "prejoin" }
+  | { kind: "lobby" }
   | { kind: "connecting" }
-  | { kind: "live"; access: VideoAccess; choices: LocalUserChoices }
+  | { kind: "live"; access: VideoAccess; choices: LobbyChoices }
   | { kind: "left" }
   | { kind: "error"; message: string };
 
+function messageFor(e: VideoAccessError, l: AgendaVideoCallLabels): string {
+  switch (e.error) {
+    case "too_early":
+      return e.opensAt ? l.tooEarly(new Date(e.opensAt)) : l.generic;
+    case "ended":
+      return l.ended;
+    case "cancelled":
+      return l.cancelled;
+    case "forbidden":
+    case "not_found":
+      return l.forbidden;
+    default:
+      return l.generic;
+  }
+}
+
+function Fullscreen({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+  return mounted ? createPortal(<div className="agv-fullscreen">{children}</div>, document.body) : null;
+}
+
 /**
- * Device check, then the LiveKit prefab conference. Hosts must load
- * `@livekit/components-styles` once (e.g. in the page that renders this) and
- * may theme it through its `--lk-*` custom properties.
+ * Device check, then a Meet-style call: stage with grid / one-to-one / screen
+ * share layouts, bottom bar with microphone, camera, device menus, screen
+ * share and leave, people and chat panels. Import
+ * `@pynkstudio/agendaapp/video/styles.css` once and theme it with the
+ * `--agv-*` custom properties.
  */
 export function AgendaVideoCall(props: AgendaVideoCallProps) {
-  const l = { ...DEFAULT_VIDEO_LABELS, ...props.labels };
-  const [phase, setPhase] = useState<Phase>({ kind: "prejoin" });
-  const { getAccess, onLeave } = props;
+  const l: AgendaVideoCallLabels = { ...DEFAULT_VIDEO_LABELS, ...props.labels };
+  const [phase, setPhase] = useState<Phase>({ kind: "lobby" });
+  const fullscreen = props.fullscreen ?? true;
+  const className = `agv ${props.className ?? ""}`.trim();
 
-  function messageFor(e: VideoAccessError): string {
-    switch (e.error) {
-      case "too_early":
-        return e.opensAt ? l.tooEarly(new Date(e.opensAt)) : l.generic;
-      case "ended":
-        return l.ended;
-      case "cancelled":
-        return l.cancelled;
-      case "forbidden":
-      case "not_found":
-        return l.forbidden;
-      default:
-        return l.generic;
-    }
-  }
-
-  async function join(choices: LocalUserChoices) {
+  async function join(choices: LobbyChoices) {
     setPhase({ kind: "connecting" });
     try {
-      const access = await getAccess();
-      if ("error" in access) setPhase({ kind: "error", message: messageFor(access) });
+      const access = await props.getAccess();
+      if ("error" in access) setPhase({ kind: "error", message: messageFor(access, l) });
       else setPhase({ kind: "live", access, choices });
     } catch {
       setPhase({ kind: "error", message: l.generic });
     }
   }
 
-  const className = `ag-video ${props.className ?? ""}`.trim();
-
   if (phase.kind === "live") {
-    return (
-      <div className={className} data-lk-theme="default">
-        <LiveKitRoom
-          serverUrl={phase.access.serverUrl}
-          token={phase.access.token}
-          connect
-          video={phase.choices.videoEnabled ? { deviceId: phase.choices.videoDeviceId } : false}
-          audio={phase.choices.audioEnabled ? { deviceId: phase.choices.audioDeviceId } : false}
-          onDisconnected={() => {
-            setPhase({ kind: "left" });
-            onLeave?.();
-          }}
-          style={{ height: "100%" }}
-        >
-          <VideoConference />
-        </LiveKitRoom>
-      </div>
+    const { access, choices } = phase;
+    const room = (
+      <LiveKitRoom
+        serverUrl={access.serverUrl}
+        token={access.token}
+        connect
+        audio={choices.audioEnabled ? { deviceId: choices.audioDeviceId || undefined } : false}
+        video={choices.videoEnabled ? { deviceId: choices.videoDeviceId || undefined } : false}
+        options={{
+          adaptiveStream: true,
+          dynacast: true,
+          audioOutput: choices.audioOutputDeviceId ? { deviceId: choices.audioOutputDeviceId } : undefined,
+        }}
+        onDisconnected={() => {
+          setPhase({ kind: "left" });
+          props.onLeave?.();
+        }}
+        className={className}
+      >
+        <AgendaMeetRoom labels={l} title={props.title} />
+      </LiveKitRoom>
     );
+    return fullscreen ? <Fullscreen>{room}</Fullscreen> : room;
   }
 
   return (
-    <div className={className} data-lk-theme="default">
-      {phase.kind === "prejoin" && (
-        <PreJoin
-          defaults={{ username: props.displayName ?? "" }}
-          onSubmit={join}
-          joinLabel={l.join}
-          micLabel={l.mic}
-          camLabel={l.camera}
-          userLabel={l.name}
-          persistUserChoices={false}
-        />
+    <div className={className}>
+      {(phase.kind === "lobby" || phase.kind === "connecting") && (
+        <AgendaLobby displayName={props.displayName} title={props.title} labels={l} busy={phase.kind === "connecting"} onJoin={join} />
       )}
-      {phase.kind === "connecting" && <p className="ag-note">{l.connecting}</p>}
       {(phase.kind === "left" || phase.kind === "error") && (
-        <div className="ag-video-status">
-          <p className="ag-note">{phase.kind === "left" ? l.left : phase.message}</p>
-          <button type="button" className="ag-submit" onClick={() => setPhase({ kind: "prejoin" })}>
+        <div className="agv-status">
+          <p>{phase.kind === "left" ? l.left : phase.message}</p>
+          <button type="button" className="agv-join" onClick={() => setPhase({ kind: "lobby" })}>
             {l.rejoin}
           </button>
         </div>

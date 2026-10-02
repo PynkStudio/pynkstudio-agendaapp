@@ -49,6 +49,10 @@ export function createAgendaServer(config) {
     function guestUrlFor(booking) {
         return config.guestUrl ? config.guestUrl(booking, manageTokenFor(booking.id)) : null;
     }
+    function guestDisplayName(booking) {
+        const custom = config.guestDisplayName?.(booking)?.trim();
+        return custom || booking.name;
+    }
     function roomFor(bookingId) {
         return `${config.video?.roomPrefix ?? "agenda-"}${bookingId}`;
     }
@@ -104,6 +108,8 @@ export function createAgendaServer(config) {
         verifyManageToken,
         /** The guest link for a booking, e.g. to put it again in a reminder. Null without `guestUrl`. */
         guestUrlFor,
+        /** Name the guest appears with in the call (`guestDisplayName`, else the booking name). */
+        guestDisplayName,
         roomFor,
         getBooking,
         /** Dates that can be offered in a date picker. */
@@ -409,13 +415,21 @@ export function createAgendaServer(config) {
             const identity = input.as === "guest" ? `guest:${booking.id}` : `host:${input.identity}`;
             const token = createLivekitToken(video, {
                 identity,
-                name: input.as === "guest" ? booking.name : input.name,
+                name: input.as === "guest" ? guestDisplayName(booking) : input.name,
                 metadata: JSON.stringify({ role: input.as, bookingId: booking.id }),
                 ttlSeconds: video.tokenTtlSeconds,
                 grant: { room: booking.videoRoom, roomJoin: true, roomAdmin: input.as === "host" },
                 now: new Date(at),
             });
-            return { ok: true, serverUrl: video.url, token, room: booking.videoRoom, role: input.as, booking };
+            return {
+                ok: true,
+                serverUrl: video.url,
+                token,
+                room: booking.videoRoom,
+                role: input.as,
+                displayName: input.as === "guest" ? guestDisplayName(booking) : input.name,
+                booking,
+            };
         },
         async handleLivekitWebhook(rawBody, authorization) {
             const video = config.video;

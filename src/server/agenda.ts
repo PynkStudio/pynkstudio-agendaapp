@@ -69,6 +69,8 @@ export type VideoAccessResult =
       token: string;
       room: string;
       role: "guest" | "host";
+      /** Name shown to the other participants. */
+      displayName: string;
       booking: AgendaBooking;
     }
   | {
@@ -137,6 +139,11 @@ export function createAgendaServer(config: AgendaServerConfig) {
     return config.guestUrl ? config.guestUrl(booking, manageTokenFor(booking.id)) : null;
   }
 
+  function guestDisplayName(booking: AgendaBooking): string {
+    const custom = config.guestDisplayName?.(booking)?.trim();
+    return custom || booking.name;
+  }
+
   function roomFor(bookingId: string): string {
     return `${config.video?.roomPrefix ?? "agenda-"}${bookingId}`;
   }
@@ -189,6 +196,8 @@ export function createAgendaServer(config: AgendaServerConfig) {
     verifyManageToken,
     /** The guest link for a booking, e.g. to put it again in a reminder. Null without `guestUrl`. */
     guestUrlFor,
+    /** Name the guest appears with in the call (`guestDisplayName`, else the booking name). */
+    guestDisplayName,
     roomFor,
     getBooking,
 
@@ -489,13 +498,21 @@ export function createAgendaServer(config: AgendaServerConfig) {
       const identity = input.as === "guest" ? `guest:${booking.id}` : `host:${input.identity}`;
       const token = createLivekitToken(video, {
         identity,
-        name: input.as === "guest" ? booking.name : input.name,
+        name: input.as === "guest" ? guestDisplayName(booking) : input.name,
         metadata: JSON.stringify({ role: input.as, bookingId: booking.id }),
         ttlSeconds: video.tokenTtlSeconds,
         grant: { room: booking.videoRoom, roomJoin: true, roomAdmin: input.as === "host" },
         now: new Date(at),
       });
-      return { ok: true, serverUrl: video.url, token, room: booking.videoRoom, role: input.as, booking };
+      return {
+        ok: true,
+        serverUrl: video.url,
+        token,
+        room: booking.videoRoom,
+        role: input.as,
+        displayName: input.as === "guest" ? guestDisplayName(booking) : input.name,
+        booking,
+      };
     },
 
     async handleLivekitWebhook(rawBody: string, authorization: string | null): Promise<WebhookResult> {

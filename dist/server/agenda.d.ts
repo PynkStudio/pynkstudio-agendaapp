@@ -61,6 +61,8 @@ export type VideoAccessResult = {
     token: string;
     room: string;
     role: "guest" | "host";
+    /** Name shown to the other participants. */
+    displayName: string;
     booking: AgendaBooking;
 } | {
     ok: false;
@@ -85,6 +87,8 @@ export declare function createAgendaServer(config: AgendaServerConfig): {
     verifyManageToken: (bookingId: string, token: string | null | undefined) => boolean;
     /** The guest link for a booking, e.g. to put it again in a reminder. Null without `guestUrl`. */
     guestUrlFor: (booking: AgendaBooking) => string | null;
+    /** Name the guest appears with in the call (`guestDisplayName`, else the booking name). */
+    guestDisplayName: (booking: AgendaBooking) => string;
     roomFor: (bookingId: string) => string;
     getBooking: (id: string) => Promise<AgendaBooking | null>;
     /** Dates that can be offered in a date picker. */

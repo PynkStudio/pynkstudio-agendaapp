@@ -5,7 +5,7 @@ Checklist completa. Gli esempi usano Next.js App Router; con altri host cambia s
 ## 1. Dipendenze
 
 - `@pynkstudio/agendaapp` dal tarball del tag (vedi `README.md`).
-- Per la videocall: `livekit-client`, `@livekit/components-react`, `@livekit/components-styles`.
+- Per la videocall: `livekit-client`, `@livekit/components-react`; nella pagina della call `import "@pynkstudio/agendaapp/video/styles.css"`.
 
 ## 2. Database
 
@@ -40,8 +40,9 @@ Lo scope lo decide l'app per ogni richiesta (`{ scope }`).
 
 - Prenotazione: `useAgendaBooking` o `AgendaBookingWidget`.
 - **Route di ingresso** all'URL di `guestUrl`: sposta il token in un cookie httpOnly e reindirizza all'URL pulito (i tracker non devono vedere il token, vedi [[link-ospite-ed-email]]).
-- **Pagina ospite**: noindex, token letto dal cookie, `AgendaVideoCall` con `getAccess` verso `videoToken` passando `token`.
-- Pagina staff: `AgendaVideoCall` con `getAccess` senza token (autenticato da `authorizeHost`).
+- **Pagina ospite**: noindex, token letto dal cookie, `AgendaVideoCall` con `displayName={agenda.guestDisplayName(booking)}` e `getAccess` verso `videoToken` passando `token`.
+- Pagina staff: `AgendaVideoCall` con `displayName` = nome e cognome dell'utente (lo stesso di `authorizeHost`) e `getAccess` senza token.
+- Tema: sovrascrivi le variabili `--agv-*` con i colori dell'app.
 - Agenda staff: tabella/calendario costruiti su `hostList`/`hostUpdate`.
 
 ## 7. Promemoria

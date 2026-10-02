@@ -1,0 +1,1 @@
+{"version":3,"file":"room.d.ts","sourceRoot":"","sources":["../../src/video/room.tsx"],"names":[],"mappings":"AAqCA,OAAO,KAAK,EAAE,qBAAqB,EAAE,MAAM,aAAa,CAAC;AAoVzD,qEAAqE;AACrE,wBAAgB,cAAc,CAAC,EAAE,MAAM,EAAE,KAAK,EAAE,EAAE;IAAE,MAAM,EAAE,qBAAqB,CAAC;IAAC,KAAK,CAAC,EAAE,MAAM,CAAA;CAAE,+BAsElG"}
