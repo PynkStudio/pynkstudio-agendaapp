@@ -52,6 +52,13 @@ export type AgendaSettingsLabels = {
     saveHours: string;
     calendars: string;
     noCalendars: string;
+    writeTitle: string;
+    writeHint: string;
+    writeOff: string;
+    writeNoWritable: string;
+    writeLoading: string;
+    writeSave: string;
+    writeSaved: string;
     connectGoogle: string;
     connectMicrosoft: string;
     connectApple: string;

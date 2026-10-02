@@ -1,6 +1,6 @@
 "use client";
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SETTINGS_LABELS } from "./labels.js";
 export { SETTINGS_LABELS } from "./labels.js";
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -24,6 +24,61 @@ function WindowsEditor({ windows, onChange, showCapacity, l, }) {
 }
 function Card({ title, hint, children }) {
     return (_jsxs("section", { className: "ags-card", children: [_jsx("h3", { className: "ags-card-title", children: title }), hint && _jsx("p", { className: "ags-hint", children: hint }), children] }));
+}
+// ─── Destination calendar ───────────────────────────────────────────────────
+function WriteTarget({ host, connections, endpoints, l, onChanged, }) {
+    const writable = connections.filter((c) => c.provider !== "ics");
+    const current = host.writeTarget ?? null;
+    const [connectionId, setConnectionId] = useState(current?.connectionId ?? "");
+    const [calendarId, setCalendarId] = useState(current?.calendarId ?? "");
+    const [options, setOptions] = useState(null);
+    const [state, setState] = useState({ busy: false });
+    // Labels are rebuilt on every render of the panel: read them through a ref
+    // so the calendar list is fetched only when the connection changes.
+    const labels = useRef(l);
+    labels.current = l;
+    useEffect(() => {
+        const l = labels.current;
+        if (!connectionId) {
+            setOptions(null);
+            return;
+        }
+        let cancelled = false;
+        setOptions(null);
+        setState({ busy: true, message: l.writeLoading });
+        call(`${endpoints.calendars}${endpoints.calendars.includes("?") ? "&" : "?"}connectionId=${encodeURIComponent(connectionId)}`)
+            .then((data) => {
+            if (cancelled)
+                return;
+            setOptions(data.calendars);
+            setState({ busy: false });
+            setCalendarId((prev) => (data.calendars.some((c) => c.id === prev) ? prev : (data.calendars.find((c) => c.primary) ?? data.calendars[0])?.id ?? ""));
+        })
+            .catch((e) => {
+            if (!cancelled)
+                setState({ busy: false, error: true, message: `${l.connectFailed}: ${l.errors[e.message] ?? e.message}` });
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [connectionId, endpoints.calendars]);
+    const save = async () => {
+        setState({ busy: true });
+        try {
+            const name = options?.find((c) => c.id === calendarId)?.name ?? null;
+            await call(endpoints.host, {
+                method: "PATCH",
+                body: JSON.stringify({ hostId: host.id, writeTarget: connectionId && calendarId ? { connectionId, calendarId, calendarName: name } : null }),
+            });
+            setState({ busy: false, message: l.writeSaved });
+            onChanged();
+        }
+        catch (e) {
+            setState({ busy: false, error: true, message: `${l.saveError}: ${l.errors[e.message] ?? e.message}` });
+        }
+    };
+    const changed = (current?.connectionId ?? "") !== connectionId || (connectionId && (current?.calendarId ?? "") !== calendarId);
+    return (_jsxs("div", { className: "ags-host-block", children: [_jsx("p", { className: "ags-label", children: l.writeTitle }), _jsx("p", { className: "ags-hint", children: writable.length ? l.writeHint : l.writeNoWritable }), writable.length > 0 && (_jsxs("div", { className: "ags-inline ags-write", children: [_jsxs("select", { value: connectionId, onChange: (e) => setConnectionId(e.target.value), "aria-label": l.calendars, children: [_jsx("option", { value: "", children: l.writeOff }), writable.map((c) => (_jsxs("option", { value: c.id, children: [l.providerNames[c.provider], " \u00B7 ", c.account ?? "—"] }, c.id)))] }), connectionId && options && (_jsx("select", { value: calendarId, onChange: (e) => setCalendarId(e.target.value), "aria-label": l.writeTitle, children: options.map((c) => (_jsx("option", { value: c.id, children: c.name }, c.id))) })), changed && (_jsx("button", { type: "button", className: "ags-btn", disabled: state.busy || Boolean(connectionId && !calendarId), onClick: () => void save(), children: l.writeSave }))] })), state.message && _jsx("p", { className: state.error ? "ags-error" : "ags-muted ags-small", children: state.message })] }));
 }
 // ─── Team member ────────────────────────────────────────────────────────────
 function HostCard({ host, connections, providers, baseWeekly, endpoints, returnTo, l, onChanged, }) {
@@ -79,7 +134,7 @@ function HostCard({ host, connections, providers, baseWeekly, endpoints, returnT
                                     }, children: l.disconnect })] }, c.id))) }), _jsxs("div", { className: "ags-connect", children: [["google", "microsoft"].map((p) => providers[p] ? (_jsx("a", { className: "ags-btn ags-btn-ghost", href: oauthHref(p), children: p === "google" ? l.connectGoogle : l.connectMicrosoft }, p)) : (_jsx("span", { className: "ags-btn ags-btn-ghost is-disabled", title: l.notConfigured, "aria-disabled": true, children: p === "google" ? l.connectGoogle : l.connectMicrosoft }, p))), _jsx("button", { type: "button", className: "ags-btn ags-btn-ghost", disabled: !providers.caldav, title: providers.caldav ? undefined : l.notConfigured, onClick: () => setForm(form === "caldav" ? null : "caldav"), children: l.connectApple }), _jsx("button", { type: "button", className: "ags-btn ags-btn-ghost", disabled: !providers.ics, title: providers.ics ? undefined : l.notConfigured, onClick: () => setForm(form === "ics" ? null : "ics"), children: l.connectIcs })] }), form && (_jsxs("form", { className: "ags-inline-form", onSubmit: (e) => {
                             e.preventDefault();
                             void connect();
-                        }, children: [form === "caldav" ? (_jsxs(_Fragment, { children: [_jsx("p", { className: "ags-hint", children: l.appleHelp }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.appleId }), _jsx("input", { type: "email", autoComplete: "off", value: fields.username, onChange: (e) => setFields({ ...fields, username: e.target.value }), required: true })] }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.applePassword }), _jsx("input", { type: "password", autoComplete: "new-password", value: fields.password, onChange: (e) => setFields({ ...fields, password: e.target.value }), required: true })] }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.caldavServer }), _jsx("input", { type: "url", placeholder: "https://caldav.icloud.com", value: fields.server, onChange: (e) => setFields({ ...fields, server: e.target.value }) })] })] })) : (_jsxs(_Fragment, { children: [_jsx("p", { className: "ags-hint", children: l.icsHelp }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.icsUrl }), _jsx("input", { type: "url", inputMode: "url", placeholder: "https://\u2026/basic.ics", value: fields.url, onChange: (e) => setFields({ ...fields, url: e.target.value }), required: true })] }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.icsLabel }), _jsx("input", { value: fields.label, onChange: (e) => setFields({ ...fields, label: e.target.value }) })] })] })), _jsxs("div", { className: "ags-actions", children: [_jsx("button", { type: "submit", className: "ags-btn", disabled: busy, children: busy ? l.connecting : l.connect }), _jsx("button", { type: "button", className: "ags-btn ags-btn-ghost", onClick: () => setForm(null), children: l.cancel })] })] }))] }), _jsxs("div", { className: "ags-host-block", children: [_jsx("p", { className: "ags-label", children: l.personalHours }), _jsxs("div", { className: "ags-radios", children: [_jsxs("label", { children: [_jsx("input", { type: "radio", checked: custom === null, onChange: () => setCustom(null) }), " ", l.sameHours] }), _jsxs("label", { children: [_jsx("input", { type: "radio", checked: custom !== null, onChange: () => setCustom(saved ?? baseWeekly.map(({ capacity: _c, ...w }) => w)) }), " ", l.customHours] })] }), custom && _jsx(WindowsEditor, { windows: custom, onChange: setCustom, showCapacity: false, l: l }), JSON.stringify(custom) !== JSON.stringify(saved) && (_jsx("button", { type: "button", className: "ags-btn", disabled: busy, onClick: () => void patch({ weekly: custom }), children: l.saveHours }))] }), error && _jsx("p", { className: "ags-error", role: "alert", children: error })] }));
+                        }, children: [form === "caldav" ? (_jsxs(_Fragment, { children: [_jsx("p", { className: "ags-hint", children: l.appleHelp }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.appleId }), _jsx("input", { type: "email", autoComplete: "off", value: fields.username, onChange: (e) => setFields({ ...fields, username: e.target.value }), required: true })] }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.applePassword }), _jsx("input", { type: "password", autoComplete: "new-password", value: fields.password, onChange: (e) => setFields({ ...fields, password: e.target.value }), required: true })] }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.caldavServer }), _jsx("input", { type: "url", placeholder: "https://caldav.icloud.com", value: fields.server, onChange: (e) => setFields({ ...fields, server: e.target.value }) })] })] })) : (_jsxs(_Fragment, { children: [_jsx("p", { className: "ags-hint", children: l.icsHelp }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.icsUrl }), _jsx("input", { type: "url", inputMode: "url", placeholder: "https://\u2026/basic.ics", value: fields.url, onChange: (e) => setFields({ ...fields, url: e.target.value }), required: true })] }), _jsxs("label", { className: "ags-field", children: [_jsx("span", { children: l.icsLabel }), _jsx("input", { value: fields.label, onChange: (e) => setFields({ ...fields, label: e.target.value }) })] })] })), _jsxs("div", { className: "ags-actions", children: [_jsx("button", { type: "submit", className: "ags-btn", disabled: busy, children: busy ? l.connecting : l.connect }), _jsx("button", { type: "button", className: "ags-btn ags-btn-ghost", onClick: () => setForm(null), children: l.cancel })] })] }))] }), _jsx(WriteTarget, { host: host, connections: connections, endpoints: endpoints, l: l, onChanged: onChanged }, `${connections.map((c) => c.id).join(",")}:${host.writeTarget?.connectionId ?? ""}:${host.writeTarget?.calendarId ?? ""}`), _jsxs("div", { className: "ags-host-block", children: [_jsx("p", { className: "ags-label", children: l.personalHours }), _jsxs("div", { className: "ags-radios", children: [_jsxs("label", { children: [_jsx("input", { type: "radio", checked: custom === null, onChange: () => setCustom(null) }), " ", l.sameHours] }), _jsxs("label", { children: [_jsx("input", { type: "radio", checked: custom !== null, onChange: () => setCustom(saved ?? baseWeekly.map(({ capacity: _c, ...w }) => w)) }), " ", l.customHours] })] }), custom && _jsx(WindowsEditor, { windows: custom, onChange: setCustom, showCapacity: false, l: l }), JSON.stringify(custom) !== JSON.stringify(saved) && (_jsx("button", { type: "button", className: "ags-btn", disabled: busy, onClick: () => void patch({ weekly: custom }), children: l.saveHours }))] }), error && _jsx("p", { className: "ags-error", role: "alert", children: error })] }));
 }
 // ─── Panel ──────────────────────────────────────────────────────────────────
 /**

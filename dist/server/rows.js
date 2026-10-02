@@ -1,4 +1,4 @@
-export const BOOKING_COLUMNS = "id, scope, event_type, calendar, host_id, status, starts_at, ends_at, location, name, email, phone, topic, guest_timezone, answers, source, video_room, video_started_at, video_ended_at, reminder_sent_at, cancelled_at, cancel_reason, created_at";
+export const BOOKING_COLUMNS = "id, scope, event_type, calendar, host_id, external_event, status, starts_at, ends_at, location, name, email, phone, topic, guest_timezone, answers, source, video_room, video_started_at, video_ended_at, reminder_sent_at, cancelled_at, cancel_reason, created_at";
 export function toBooking(row) {
     return {
         id: row.id,

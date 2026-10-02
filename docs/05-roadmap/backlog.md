@@ -4,7 +4,8 @@ Idee e limiti noti. Nessuna data: non è una roadmap impegnata.
 
 | Voce | Note |
 |---|---|
-| Scrivere l'appuntamento nel calendario della persona assegnata | Oggi i calendari sono solo letti ([[calendari-collegati]]); servono scope di scrittura (Google `calendar.events`, Microsoft `Calendars.ReadWrite`, CalDAV PUT) |
+| Aggiornare l'evento nel calendario della persona se la prenotazione viene spostata | Oggi non esiste lo spostamento: annulla + nuova prenotazione |
+| Invito email all'ospite dal calendario della persona | Oggi l'ospite riceve solo l'email dell'app con «Salva sul calendario» |
 | Fuso orario per persona | Oggi gli orari personali sono nel fuso del tipo di appuntamento |
 | Scelta della persona da parte del cliente | Oggi l'assegnazione è automatica (la meno occupata) |
 | Riprogrammazione da parte dell'ospite | Oggi: annulla e riprenota |

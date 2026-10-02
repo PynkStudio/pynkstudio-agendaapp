@@ -88,7 +88,8 @@ export declare function createAgendaHandlers(config: AgendaHandlersConfig): {
     /** Staff — `PATCH { hostId, active?, weekly? }` (weekly `null` = same hours as the event type). */
     settingsUpdateHost(request: Request, { scope }: Ctx): Promise<Response>;
     /**
-     * Staff — `POST { hostId, provider: "caldav", username, password, server? }`
+     * Staff — `GET ?connectionId` lists the calendars that can receive bookings;
+     * `POST { hostId, provider: "caldav", username, password, server? }`
      * or `{ hostId, provider: "ics", url, label? }` connects a calendar;
      * `DELETE { id }` disconnects one.
      */
@@ -97,6 +98,11 @@ export declare function createAgendaHandlers(config: AgendaHandlersConfig): {
     calendarOAuthStart(request: Request, { scope }: Ctx): Promise<Response>;
     /** OAuth callback for a provider: stores the connection, then redirects to `returnTo?calendar=connected|error`. */
     calendarOAuthCallback(request: Request, provider: "google" | "microsoft"): Promise<Response>;
+    /**
+     * Guest — `GET ?bookingId&token` → the booking as an `.ics` file
+     * ("save to calendar", Apple Calendar and anything else that opens iCal).
+     */
+    guestIcs(request: Request, { scope }: Ctx): Promise<Response>;
     /** LiveKit webhook receiver. Needs the raw body, so mount it on its own route. */
     livekitWebhook(request: Request): Promise<Response>;
 };

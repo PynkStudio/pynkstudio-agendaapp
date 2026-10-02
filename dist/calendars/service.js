@@ -1,8 +1,8 @@
-import { caldavBusy, discoverCalendars, ICLOUD_CALDAV } from "./caldav.js";
+import { caldavBusy, caldavDeleteEvent, caldavPutEvent, discoverCalendars, discoverNamedCalendars, ICLOUD_CALDAV } from "./caldav.js";
 import { decryptJson, encryptJson, signState, verifyState } from "./crypto.js";
-import { googleBusy } from "./google.js";
+import { googleBusy, googleCalendars, googleCreateEvent, googleDeleteEvent } from "./google.js";
 import { icsBusy, normalizeIcsUrl } from "./ics.js";
-import { microsoftBusy } from "./microsoft.js";
+import { microsoftBusy, microsoftCalendars, microsoftCreateEvent, microsoftDeleteEvent } from "./microsoft.js";
 import { authorizationUrl, exchangeCode, freshCredentials, oauthConfigured } from "./oauth.js";
 import { CalendarAuthError, } from "./types.js";
 const COLUMNS = "id, host_id, provider, account, credentials, status, last_error, last_synced_at";
@@ -67,8 +67,84 @@ export function createCalendarService(opts) {
                 return { busy: await icsBusy(creds.url, from, to, http()) };
         }
     }
+    async function loadRow(scope, id) {
+        const db = opts.db();
+        if (!db)
+            return null;
+        const { data } = await db.from(opts.table).select(COLUMNS).eq("scope", scope).eq("id", id).maybeSingle();
+        return data ?? null;
+    }
+    /** Decrypted credentials, OAuth tokens refreshed (and saved back) when needed. */
+    async function credentialsOf(row) {
+        const c = requireCfg();
+        const creds = decryptJson(c.credentialsKey, row.credentials);
+        if (row.provider !== "google" && row.provider !== "microsoft")
+            return creds;
+        const fresh = await freshCredentials(c, row.provider, creds);
+        if (fresh !== creds)
+            await opts.db()?.from(opts.table).update({ credentials: encryptJson(c.credentialsKey, fresh) }).eq("id", row.id);
+        return fresh;
+    }
     return {
         enabled: () => Boolean(cfg),
+        /** Providers that can receive the bookings (ICS feeds are read-only). */
+        writable: (provider) => provider !== "ics",
+        /** Calendars of a connection that can be chosen as destination for the assigned calls. */
+        async writableCalendars(scope, connectionId) {
+            const row = await loadRow(scope, connectionId);
+            if (!row)
+                return { error: "not_found" };
+            if (row.provider === "ics")
+                return { error: "read_only" };
+            try {
+                const creds = await credentialsOf(row);
+                if (row.provider === "google")
+                    return await googleCalendars(creds.accessToken, http());
+                if (row.provider === "microsoft")
+                    return await microsoftCalendars(creds.accessToken, http());
+                return await discoverNamedCalendars(creds, http());
+            }
+            catch (e) {
+                opts.warn("writable calendars lookup failed", e);
+                return { error: e instanceof CalendarAuthError ? "auth_failed" : "unreachable" };
+            }
+        },
+        /** Writes an event into a connection's calendar. */
+        async writeEvent(scope, connectionId, calendarId, event) {
+            const row = await loadRow(scope, connectionId);
+            if (!row)
+                throw new Error("calendar connection not found");
+            const creds = await credentialsOf(row);
+            let eventId;
+            if (row.provider === "google")
+                eventId = await googleCreateEvent(creds.accessToken, calendarId, event, http());
+            else if (row.provider === "microsoft")
+                eventId = await microsoftCreateEvent(creds.accessToken, calendarId, event, http());
+            else if (row.provider === "caldav")
+                eventId = await caldavPutEvent(creds, calendarId, event, http());
+            else
+                throw new Error("ICS feeds are read-only");
+            // The new event changes this host's busy times: drop cached lists.
+            for (const key of cache.keys())
+                if (key.startsWith(`${row.id}:`))
+                    cache.delete(key);
+            return { connectionId: row.id, provider: row.provider, calendarId, eventId };
+        },
+        async deleteEvent(scope, ref) {
+            const row = await loadRow(scope, ref.connectionId);
+            if (!row)
+                return;
+            const creds = await credentialsOf(row);
+            if (row.provider === "google")
+                await googleDeleteEvent(creds.accessToken, ref.calendarId, ref.eventId, http());
+            else if (row.provider === "microsoft")
+                await microsoftDeleteEvent(creds.accessToken, ref.eventId, http());
+            else if (row.provider === "caldav")
+                await caldavDeleteEvent(creds, ref.eventId, http());
+            for (const key of cache.keys())
+                if (key.startsWith(`${row.id}:`))
+                    cache.delete(key);
+        },
         /** Which providers can be offered in the settings page. */
         providers() {
             return {

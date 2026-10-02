@@ -92,6 +92,7 @@
 .ags-dates li { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 12px; border: 1px solid var(--ags-line); border-radius: 999px; font-size: 13px; }
 .ags-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ags-inline input { width: auto; }
+.ags-write select { min-height: 38px; padding: 6px 10px; border: 1px solid var(--ags-line); border-radius: 8px; background: var(--ags-surface); max-width: 100%; }
 
 .ags-savebar {
   position: sticky;

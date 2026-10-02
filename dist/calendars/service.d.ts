@@ -1,5 +1,12 @@
 import type { BusyInterval } from "../core/types.js";
-import { type CalendarProvider, type CalendarsConfig } from "./types.js";
+import { type CalendarProvider, type CalendarsConfig, type HostEvent, type WritableCalendar } from "./types.js";
+/** Where an event written for a booking lives, so it can be removed on cancellation. */
+export type ExternalEventRef = {
+    connectionId: string;
+    provider: CalendarProvider;
+    calendarId: string;
+    eventId: string;
+};
 type Db = {
     from: (table: string) => any;
 };
@@ -27,6 +34,15 @@ export declare function createCalendarService(opts: {
     warn: (message: string, error?: unknown) => void;
 }): {
     enabled: () => boolean;
+    /** Providers that can receive the bookings (ICS feeds are read-only). */
+    writable: (provider: CalendarProvider) => provider is "google" | "microsoft" | "caldav";
+    /** Calendars of a connection that can be chosen as destination for the assigned calls. */
+    writableCalendars(scope: string, connectionId: string): Promise<WritableCalendar[] | {
+        error: string;
+    }>;
+    /** Writes an event into a connection's calendar. */
+    writeEvent(scope: string, connectionId: string, calendarId: string, event: HostEvent): Promise<ExternalEventRef>;
+    deleteEvent(scope: string, ref: ExternalEventRef): Promise<void>;
     /** Which providers can be offered in the settings page. */
     providers(): Record<CalendarProvider, boolean>;
     list(scope: string, hostId?: string): Promise<CalendarConnection[]>;

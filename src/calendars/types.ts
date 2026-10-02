@@ -36,3 +36,9 @@ export class CalendarAuthError extends Error {
     this.name = "CalendarAuthError";
   }
 }
+
+/** A calendar the account can write to, offered as a destination for bookings. */
+export type WritableCalendar = { id: string; name: string; primary?: boolean };
+
+/** What the package writes into a team member's calendar. */
+export type HostEvent = { title: string; description?: string; location?: string; start: Date; end: Date; uid: string };

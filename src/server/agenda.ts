@@ -1,8 +1,9 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
-import { createCalendarService } from "../calendars/service.js";
+import { createCalendarService, type ExternalEventRef } from "../calendars/service.js";
 import { availableSlots, bookableDays, freeResourcesAt, isBookableStart, seatResources, slotEnd } from "../core/availability.js";
 import { addDaysISO, isDateISO, isValidTimeZone, zonedDateISO, zonedWallClockToUtc } from "../core/time.js";
+import type { CalendarEventInput } from "../core/ics.js";
 import type { AgendaBooking, AgendaEventType, AgendaResource, AgendaSlot, BookingStatus, BusyInterval } from "../core/types.js";
 import { createLivekitToken, verifyLivekitWebhook, type LivekitWebhookEvent } from "../video/livekit.js";
 import { DEFAULT_TABLES, type AgendaDb, type AgendaServerConfig, type AgendaTables } from "./config.js";
@@ -203,6 +204,43 @@ export function createAgendaServer(config: AgendaServerConfig) {
     return `${config.video?.roomPrefix ?? "agenda-"}${bookingId}`;
   }
 
+  /**
+   * Puts the booking into the assigned host's chosen calendar. Best effort:
+   * a failure is logged and never undoes the booking.
+   */
+  async function writeToHostCalendar(db: AgendaDb, booking: AgendaBooking, et: AgendaEventType): Promise<void> {
+    if (!booking.hostId || !calendars.enabled()) return;
+    const host = (await settings.hosts(booking.scope)).find((h) => h.id === booking.hostId);
+    if (!host?.writeTarget) return;
+    const custom = config.hostCalendarEvent?.(booking, et) ?? {};
+    const description =
+      custom.description ??
+      [booking.topic && `Topic: ${booking.topic}`, `Email: ${booking.email}`, booking.phone && `Phone: ${booking.phone}`].filter(Boolean).join("\n");
+    try {
+      const ref = await calendars.writeEvent(booking.scope, host.writeTarget.connectionId, host.writeTarget.calendarId, {
+        uid: `${booking.id}@agendaapp`,
+        title: custom.title ?? `${et.title} — ${guestDisplayName(booking)}`,
+        description,
+        location: custom.location,
+        start: new Date(booking.startsAt),
+        end: new Date(booking.endsAt),
+      });
+      await db.from(tables.bookings).update({ external_event: ref }).eq("id", booking.id);
+    } catch (error) {
+      warn(`writing booking ${booking.id} into the host calendar failed`, error);
+    }
+  }
+
+  async function removeFromHostCalendar(db: AgendaDb, bookingId: string, scope: string, ref: ExternalEventRef | null | undefined): Promise<void> {
+    if (!ref?.connectionId || !calendars.enabled()) return;
+    try {
+      await calendars.deleteEvent(scope, ref);
+      await db.from(tables.bookings).update({ external_event: null }).eq("id", bookingId);
+    } catch (error) {
+      warn(`removing booking ${bookingId} from the host calendar failed`, error);
+    }
+  }
+
   async function getBooking(id: string): Promise<AgendaBooking | null> {
     const db = config.db();
     if (!db || !id) return null;
@@ -230,6 +268,26 @@ export function createAgendaServer(config: AgendaServerConfig) {
     guestDisplayName,
     roomFor,
     getBooking,
+
+    /**
+     * The booking as an event for the guest's own calendar: feed it to
+     * `eventIcs`, `googleCalendarLink` or `outlookCalendarLink` (from `/core`).
+     */
+    async guestCalendarEvent(booking: AgendaBooking): Promise<CalendarEventInput> {
+      const et = await eventType(booking.scope, booking.eventType);
+      const custom = config.guestCalendarEvent?.(booking, et) ?? {};
+      const url = guestUrlFor(booking) ?? undefined;
+      return {
+        uid: `${booking.id}@agendaapp`,
+        start: booking.startsAt,
+        end: booking.endsAt,
+        title: custom.title ?? et?.title ?? "Appointment",
+        description: custom.description,
+        location: custom.location ?? (booking.location === "video" ? url : undefined),
+        url,
+        organizer: custom.organizer,
+      };
+    },
 
     /** Dates that can be offered in a date picker. */
     async listBookableDays(scope: string, eventTypeId?: string | null): Promise<string[]> {
@@ -338,6 +396,7 @@ export function createAgendaServer(config: AgendaServerConfig) {
       if (!data) return { ok: false, error: "slot_taken" };
 
       const booking = toBooking(data as BookingRow);
+      await writeToHostCalendar(db, booking, et);
       const manageToken = manageTokenFor(booking.id);
       if (config.hooks?.onBookingCreated) {
         try {
@@ -384,6 +443,7 @@ export function createAgendaServer(config: AgendaServerConfig) {
       if (!data) return { ok: false, error: "not_cancellable" };
 
       const booking = toBooking(data as BookingRow);
+      await removeFromHostCalendar(db, booking.id, booking.scope, (data as BookingRow).external_event as ExternalEventRef | null);
       if (config.hooks?.onBookingCancelled) {
         try {
           await config.hooks.onBookingCancelled({ booking, by: input.by });

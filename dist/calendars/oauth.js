@@ -1,6 +1,13 @@
 import { CalendarAuthError } from "./types.js";
-const GOOGLE_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/calendar.freebusy"];
-const MICROSOFT_SCOPES = ["openid", "email", "offline_access", "User.Read", "Calendars.Read"];
+const GOOGLE_SCOPES = [
+    "openid",
+    "email",
+    "https://www.googleapis.com/auth/calendar.freebusy",
+    // Destination picker and writing the assigned calls.
+    "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
+];
+const MICROSOFT_SCOPES = ["openid", "email", "offline_access", "User.Read", "Calendars.ReadWrite"];
 function client(cfg, provider) {
     const c = provider === "google" ? cfg.google : cfg.microsoft;
     if (!c?.clientId || !c.clientSecret)

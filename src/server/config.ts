@@ -102,6 +102,20 @@ export type AgendaServerConfig = {
    * in the booking form; hosts typically add the company, e.g. from `answers`.
    */
   guestDisplayName?: (booking: AgendaBooking) => string;
+  /**
+   * Event written into the assigned team member's calendar (when they chose
+   * one). Fields left out keep the defaults: title "<event type> — <guest>",
+   * description with topic, email and phone.
+   */
+  hostCalendarEvent?: (booking: AgendaBooking, eventType: AgendaEventType) => { title?: string; description?: string; location?: string };
+  /**
+   * Event the guest saves to their own calendar (.ics, Google, Outlook links).
+   * Defaults: the event type title, the guest link as URL and location.
+   */
+  guestCalendarEvent?: (
+    booking: AgendaBooking,
+    eventType: AgendaEventType | null,
+  ) => { title?: string; description?: string; location?: string; organizer?: { name: string; email: string } };
   tables?: Partial<AgendaTables>;
   hooks?: AgendaHooks;
   logger?: AgendaLogger;

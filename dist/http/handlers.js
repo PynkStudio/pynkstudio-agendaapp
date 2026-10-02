@@ -5,6 +5,7 @@
  * everything else is here.
  */
 import { HOLIDAY_CALENDARS } from "../core/holidays.js";
+import { eventIcs } from "../core/ics.js";
 const STANDARD_KEYS = new Set([
     "eventType",
     "startUtc",
@@ -274,19 +275,43 @@ export function createAgendaHandlers(config) {
             const hostId = str(body?.hostId);
             if (!body || !hostId)
                 return json({ error: "invalid_request" }, 400);
-            const updated = await agenda().settings.updateHost(scope, hostId, { active: body.active, weekly: body.weekly });
+            let writeTarget;
+            if (body.writeTarget === null)
+                writeTarget = null;
+            else if (body.writeTarget && typeof body.writeTarget === "object") {
+                const t = body.writeTarget;
+                const connectionId = str(t.connectionId);
+                const calendarId = str(t.calendarId);
+                // Only one of this person's own calendars that accepts writing.
+                const own = (await agenda().calendars.list(scope, hostId)).find((c) => c.id === connectionId);
+                if (!own || !calendarId || !agenda().calendars.writable(own.provider))
+                    return json({ error: "invalid_write_target" }, 400);
+                writeTarget = { connectionId, calendarId, calendarName: str(t.calendarName) || null };
+            }
+            const updated = await agenda().settings.updateHost(scope, hostId, {
+                active: body.active,
+                weekly: body.weekly,
+                writeTarget,
+            });
             return updated ? json({ ok: true, host: updated }) : json({ error: "not_found" }, 404);
         },
         /**
-         * Staff — `POST { hostId, provider: "caldav", username, password, server? }`
+         * Staff — `GET ?connectionId` lists the calendars that can receive bookings;
+         * `POST { hostId, provider: "caldav", username, password, server? }`
          * or `{ hostId, provider: "ics", url, label? }` connects a calendar;
          * `DELETE { id }` disconnects one.
          */
         async calendarsManage(request, { scope }) {
             if (!(await host(request, scope)))
                 return json({ error: "unauthorized" }, 401);
-            const body = await readJson(request);
             const calendars = agenda().calendars;
+            if (request.method === "GET") {
+                // `GET ?connectionId` → calendars of that connection that can receive the bookings.
+                const connectionId = new URL(request.url).searchParams.get("connectionId") ?? "";
+                const result = await calendars.writableCalendars(scope, connectionId);
+                return Array.isArray(result) ? json({ calendars: result }) : json({ error: result.error }, result.error === "not_found" ? 404 : 400);
+            }
+            const body = await readJson(request);
             if (request.method === "DELETE") {
                 const id = str(body?.id);
                 if (!id)
@@ -336,6 +361,30 @@ export function createAgendaHandlers(config) {
             if (!result.ok)
                 back.searchParams.set("reason", result.error);
             return Response.redirect(back.toString(), 303);
+        },
+        /**
+         * Guest — `GET ?bookingId&token` → the booking as an `.ics` file
+         * ("save to calendar", Apple Calendar and anything else that opens iCal).
+         */
+        async guestIcs(request, { scope }) {
+            const url = new URL(request.url);
+            const bookingId = url.searchParams.get("bookingId") ?? "";
+            const token = url.searchParams.get("token") ?? "";
+            const a = agenda();
+            if (!a.verifyManageToken(bookingId, token))
+                return json({ error: "forbidden" }, 403);
+            const booking = await a.getBooking(bookingId);
+            if (!booking || booking.scope !== scope)
+                return json({ error: "not_found" }, 404);
+            const ics = eventIcs({ ...(await a.guestCalendarEvent(booking)), status: booking.status === "cancelled" ? "CANCELLED" : "CONFIRMED" });
+            return new Response(ics, {
+                headers: {
+                    "Content-Type": "text/calendar; charset=utf-8",
+                    "Content-Disposition": 'attachment; filename="appointment.ics"',
+                    "Cache-Control": "no-store",
+                    "Referrer-Policy": "no-referrer",
+                },
+            });
         },
         /** LiveKit webhook receiver. Needs the raw body, so mount it on its own route. */
         async livekitWebhook(request) {

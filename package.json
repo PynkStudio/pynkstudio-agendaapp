@@ -1,6 +1,6 @@
 {
   "name": "@pynkstudio/agendaapp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Reusable agenda and video call package: bookable slots, bookings, reminders and LiveKit video rooms.",
   "private": false,
   "type": "module",

@@ -1,11 +1,12 @@
 import type { AgendaBooking, BookingStatus, LocationKind } from "../core/types.js";
-export declare const BOOKING_COLUMNS = "id, scope, event_type, calendar, host_id, status, starts_at, ends_at, location, name, email, phone, topic, guest_timezone, answers, source, video_room, video_started_at, video_ended_at, reminder_sent_at, cancelled_at, cancel_reason, created_at";
+export declare const BOOKING_COLUMNS = "id, scope, event_type, calendar, host_id, external_event, status, starts_at, ends_at, location, name, email, phone, topic, guest_timezone, answers, source, video_room, video_started_at, video_ended_at, reminder_sent_at, cancelled_at, cancel_reason, created_at";
 export type BookingRow = {
     id: string;
     scope: string;
     event_type: string;
     calendar: string;
     host_id?: string | null;
+    external_event?: Record<string, string> | null;
     status: BookingStatus;
     starts_at: string;
     ends_at: string;

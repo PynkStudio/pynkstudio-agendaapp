@@ -14,10 +14,27 @@ type HostRow = {
   email: string | null;
   active: boolean;
   weekly: WeeklyWindow[] | null;
+  write_connection_id?: string | null;
+  write_calendar_id?: string | null;
+  write_calendar_name?: string | null;
 };
 
+const HOST_COLUMNS = "id, scope, external_id, name, email, active, weekly, write_connection_id, write_calendar_id, write_calendar_name";
+
 function toHost(r: HostRow): AgendaHost {
-  return { id: r.id, scope: r.scope, externalId: r.external_id, name: r.name, email: r.email, active: r.active, weekly: r.weekly };
+  return {
+    id: r.id,
+    scope: r.scope,
+    externalId: r.external_id,
+    name: r.name,
+    email: r.email,
+    active: r.active,
+    weekly: r.weekly ?? null,
+    writeTarget:
+      r.write_connection_id && r.write_calendar_id
+        ? { connectionId: r.write_connection_id, calendarId: r.write_calendar_id, calendarName: r.write_calendar_name ?? null }
+        : null,
+  };
 }
 
 function num(value: unknown, min: number, max: number): number | undefined {
@@ -135,7 +152,7 @@ export function createSettingsStore(opts: {
     if (!db) return [];
     const { data, error } = await db
       .from(opts.tables.hosts)
-      .select("id, scope, external_id, name, email, active, weekly")
+      .select(HOST_COLUMNS)
       .eq("scope", scope)
       .order("name", { ascending: true });
     if (error) {
@@ -204,19 +221,36 @@ export function createSettingsStore(opts: {
       return hosts(scope);
     },
 
-    async updateHost(scope: string, id: string, patch: { active?: boolean; weekly?: unknown }): Promise<AgendaHost | null> {
+    /**
+     * `writeTarget`: `null` stops writing; otherwise the connection must be
+     * one of this host's (checked by the caller against the connections list).
+     */
+    async updateHost(
+      scope: string,
+      id: string,
+      patch: { active?: boolean; weekly?: unknown; writeTarget?: { connectionId: string; calendarId: string; calendarName?: string | null } | null },
+    ): Promise<AgendaHost | null> {
       const db = opts.db();
       if (!db) return null;
       const update: Record<string, unknown> = {};
       if (typeof patch.active === "boolean") update.active = patch.active;
       if (patch.weekly === null) update.weekly = null;
       else if (patch.weekly !== undefined) update.weekly = sanitizeWindows(patch.weekly);
+      if (patch.writeTarget === null) {
+        update.write_connection_id = null;
+        update.write_calendar_id = null;
+        update.write_calendar_name = null;
+      } else if (patch.writeTarget) {
+        update.write_connection_id = patch.writeTarget.connectionId;
+        update.write_calendar_id = patch.writeTarget.calendarId.slice(0, 500);
+        update.write_calendar_name = patch.writeTarget.calendarName?.slice(0, 200) ?? null;
+      }
       const { data, error } = await db
         .from(opts.tables.hosts)
         .update(update)
         .eq("scope", scope)
         .eq("id", id)
-        .select("id, scope, external_id, name, email, active, weekly")
+        .select(HOST_COLUMNS)
         .maybeSingle();
       hostCache.delete(scope);
       if (error) {

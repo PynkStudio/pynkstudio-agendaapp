@@ -58,6 +58,7 @@ createServer(async (req, res) => {
     "/api/settings": (r) => (r.method === "PUT" ? api.settingsSaveEventType(r, ctxScope) : api.settingsGet(r, ctxScope)),
     "/api/host": (r) => api.settingsUpdateHost(r, ctxScope),
     "/api/calendars": (r) => api.calendarsManage(r, ctxScope),
+    "/api/ics": (r) => api.guestIcs(r, ctxScope),
     "/api/oauth/start": (r) => api.calendarOAuthStart(r, ctxScope),
   };
   if (routes[url.pathname]) return send(res, await routes[url.pathname](await toRequest(req, url)));

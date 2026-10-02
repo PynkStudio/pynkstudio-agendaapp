@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { AgendaEventType, AgendaHost, WeeklyWindow } from "../core/types.js";
 import { SETTINGS_LABELS, type AgendaSettingsLabels } from "./labels.js";
@@ -134,6 +134,110 @@ function Card({ title, hint, children }: { title: string; hint?: string; childre
       {hint && <p className="ags-hint">{hint}</p>}
       {children}
     </section>
+  );
+}
+
+// ─── Destination calendar ───────────────────────────────────────────────────
+
+function WriteTarget({
+  host,
+  connections,
+  endpoints,
+  l,
+  onChanged,
+}: {
+  host: AgendaHost;
+  connections: Connection[];
+  endpoints: AgendaSettingsEndpoints;
+  l: AgendaSettingsLabels;
+  onChanged: () => void;
+}) {
+  const writable = connections.filter((c) => c.provider !== "ics");
+  const current = host.writeTarget ?? null;
+  const [connectionId, setConnectionId] = useState(current?.connectionId ?? "");
+  const [calendarId, setCalendarId] = useState(current?.calendarId ?? "");
+  const [options, setOptions] = useState<Array<{ id: string; name: string; primary?: boolean }> | null>(null);
+  const [state, setState] = useState<{ busy: boolean; message?: string; error?: boolean }>({ busy: false });
+  // Labels are rebuilt on every render of the panel: read them through a ref
+  // so the calendar list is fetched only when the connection changes.
+  const labels = useRef(l);
+  labels.current = l;
+
+  useEffect(() => {
+    const l = labels.current;
+    if (!connectionId) {
+      setOptions(null);
+      return;
+    }
+    let cancelled = false;
+    setOptions(null);
+    setState({ busy: true, message: l.writeLoading });
+    call<{ calendars: Array<{ id: string; name: string; primary?: boolean }> }>(
+      `${endpoints.calendars}${endpoints.calendars.includes("?") ? "&" : "?"}connectionId=${encodeURIComponent(connectionId)}`,
+    )
+      .then((data) => {
+        if (cancelled) return;
+        setOptions(data.calendars);
+        setState({ busy: false });
+        setCalendarId((prev) => (data.calendars.some((c) => c.id === prev) ? prev : (data.calendars.find((c) => c.primary) ?? data.calendars[0])?.id ?? ""));
+      })
+      .catch((e) => {
+        if (!cancelled) setState({ busy: false, error: true, message: `${l.connectFailed}: ${l.errors[(e as Error).message] ?? (e as Error).message}` });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connectionId, endpoints.calendars]);
+
+  const save = async () => {
+    setState({ busy: true });
+    try {
+      const name = options?.find((c) => c.id === calendarId)?.name ?? null;
+      await call(endpoints.host, {
+        method: "PATCH",
+        body: JSON.stringify({ hostId: host.id, writeTarget: connectionId && calendarId ? { connectionId, calendarId, calendarName: name } : null }),
+      });
+      setState({ busy: false, message: l.writeSaved });
+      onChanged();
+    } catch (e) {
+      setState({ busy: false, error: true, message: `${l.saveError}: ${l.errors[(e as Error).message] ?? (e as Error).message}` });
+    }
+  };
+
+  const changed = (current?.connectionId ?? "") !== connectionId || (connectionId && (current?.calendarId ?? "") !== calendarId);
+
+  return (
+    <div className="ags-host-block">
+      <p className="ags-label">{l.writeTitle}</p>
+      <p className="ags-hint">{writable.length ? l.writeHint : l.writeNoWritable}</p>
+      {writable.length > 0 && (
+        <div className="ags-inline ags-write">
+          <select value={connectionId} onChange={(e) => setConnectionId(e.target.value)} aria-label={l.calendars}>
+            <option value="">{l.writeOff}</option>
+            {writable.map((c) => (
+              <option key={c.id} value={c.id}>
+                {l.providerNames[c.provider]} · {c.account ?? "—"}
+              </option>
+            ))}
+          </select>
+          {connectionId && options && (
+            <select value={calendarId} onChange={(e) => setCalendarId(e.target.value)} aria-label={l.writeTitle}>
+              {options.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {changed && (
+            <button type="button" className="ags-btn" disabled={state.busy || Boolean(connectionId && !calendarId)} onClick={() => void save()}>
+              {l.writeSave}
+            </button>
+          )}
+        </div>
+      )}
+      {state.message && <p className={state.error ? "ags-error" : "ags-muted ags-small"}>{state.message}</p>}
+    </div>
   );
 }
 
@@ -315,6 +419,15 @@ function HostCard({
           </form>
         )}
       </div>
+
+      <WriteTarget
+        key={`${connections.map((c) => c.id).join(",")}:${host.writeTarget?.connectionId ?? ""}:${host.writeTarget?.calendarId ?? ""}`}
+        host={host}
+        connections={connections}
+        endpoints={endpoints}
+        l={l}
+        onChanged={onChanged}
+      />
 
       <div className="ags-host-block">
         <p className="ags-label">{l.personalHours}</p>

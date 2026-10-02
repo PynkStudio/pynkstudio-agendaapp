@@ -16,6 +16,8 @@ ospite sceglie giorno e ora ──▶ prenotazione ──▶ email di conferma c
 - **Disponibilità** — finestre settimanali per tipo di appuntamento, in qualsiasi fuso IANA con ora legale gestita; preavviso minimo, pause tra un appuntamento e l'altro, giorni chiusi, blocchi puntuali (ferie).
 - **Capienza e staff** — più appuntamenti nello stesso orario: posti decisi a mano per fascia, oppure tante prenotazioni quante persone dello staff libere ([docs/03-features/staff-e-capienza.md](docs/03-features/staff-e-capienza.md)).
 - **Calendari collegati** — Google, Outlook/Microsoft 365, Apple iCloud (e altri CalDAV), link ICS: gli orari occupati delle persone non vengono proposti ([docs/03-features/calendari-collegati.md](docs/03-features/calendari-collegati.md)).
+- **Call nel calendario dello staff** — ogni persona sceglie un calendario in cui le call assegnate vengono inserite (e tolte se annullate).
+- **«Salva sul calendario» per i clienti** — file `.ics` e link Google / Outlook da mettere nelle email ([docs/03-features/link-ospite-ed-email.md](docs/03-features/link-ospite-ed-email.md)).
 - **Festività** — chiusura automatica delle festività nazionali italiane.
 - **Pagina impostazioni** — orari, giorni, posti, chiusure, staff e calendari, pronta all'uso in italiano e inglese ([docs/03-features/impostazioni.md](docs/03-features/impostazioni.md)).
 - **Prenotazioni** — crea, annulla (staff o ospite), segna conclusa / non presentato, elenca. La doppia prenotazione è impossibile anche con richieste simultanee: la garantisce un vincolo del database.
@@ -67,7 +69,7 @@ npm install livekit-client @livekit/components-react
 
 ## Avvio rapido
 
-1. **Database** — applica `migrations/0001_agenda_schema.sql` e `migrations/0002_hosts_settings_calendars.sql` (Postgres/Supabase, richiede `btree_gist`).
+1. **Database** — applica le migration di `migrations/` in ordine (`0001`, `0002`, `0003`; Postgres/Supabase, richiede `btree_gist`).
 2. **Server** — crea l'agenda una volta sola:
 
 ```ts

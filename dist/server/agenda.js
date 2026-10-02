@@ -125,6 +125,45 @@ export function createAgendaServer(config) {
     function roomFor(bookingId) {
         return `${config.video?.roomPrefix ?? "agenda-"}${bookingId}`;
     }
+    /**
+     * Puts the booking into the assigned host's chosen calendar. Best effort:
+     * a failure is logged and never undoes the booking.
+     */
+    async function writeToHostCalendar(db, booking, et) {
+        if (!booking.hostId || !calendars.enabled())
+            return;
+        const host = (await settings.hosts(booking.scope)).find((h) => h.id === booking.hostId);
+        if (!host?.writeTarget)
+            return;
+        const custom = config.hostCalendarEvent?.(booking, et) ?? {};
+        const description = custom.description ??
+            [booking.topic && `Topic: ${booking.topic}`, `Email: ${booking.email}`, booking.phone && `Phone: ${booking.phone}`].filter(Boolean).join("\n");
+        try {
+            const ref = await calendars.writeEvent(booking.scope, host.writeTarget.connectionId, host.writeTarget.calendarId, {
+                uid: `${booking.id}@agendaapp`,
+                title: custom.title ?? `${et.title} — ${guestDisplayName(booking)}`,
+                description,
+                location: custom.location,
+                start: new Date(booking.startsAt),
+                end: new Date(booking.endsAt),
+            });
+            await db.from(tables.bookings).update({ external_event: ref }).eq("id", booking.id);
+        }
+        catch (error) {
+            warn(`writing booking ${booking.id} into the host calendar failed`, error);
+        }
+    }
+    async function removeFromHostCalendar(db, bookingId, scope, ref) {
+        if (!ref?.connectionId || !calendars.enabled())
+            return;
+        try {
+            await calendars.deleteEvent(scope, ref);
+            await db.from(tables.bookings).update({ external_event: null }).eq("id", bookingId);
+        }
+        catch (error) {
+            warn(`removing booking ${bookingId} from the host calendar failed`, error);
+        }
+    }
     async function getBooking(id) {
         const db = config.db();
         if (!db || !id)
@@ -153,6 +192,25 @@ export function createAgendaServer(config) {
         guestDisplayName,
         roomFor,
         getBooking,
+        /**
+         * The booking as an event for the guest's own calendar: feed it to
+         * `eventIcs`, `googleCalendarLink` or `outlookCalendarLink` (from `/core`).
+         */
+        async guestCalendarEvent(booking) {
+            const et = await eventType(booking.scope, booking.eventType);
+            const custom = config.guestCalendarEvent?.(booking, et) ?? {};
+            const url = guestUrlFor(booking) ?? undefined;
+            return {
+                uid: `${booking.id}@agendaapp`,
+                start: booking.startsAt,
+                end: booking.endsAt,
+                title: custom.title ?? et?.title ?? "Appointment",
+                description: custom.description,
+                location: custom.location ?? (booking.location === "video" ? url : undefined),
+                url,
+                organizer: custom.organizer,
+            };
+        },
         /** Dates that can be offered in a date picker. */
         async listBookableDays(scope, eventTypeId) {
             const et = await eventType(scope, eventTypeId);
@@ -262,6 +320,7 @@ export function createAgendaServer(config) {
             if (!data)
                 return { ok: false, error: "slot_taken" };
             const booking = toBooking(data);
+            await writeToHostCalendar(db, booking, et);
             const manageToken = manageTokenFor(booking.id);
             if (config.hooks?.onBookingCreated) {
                 try {
@@ -310,6 +369,7 @@ export function createAgendaServer(config) {
             if (!data)
                 return { ok: false, error: "not_cancellable" };
             const booking = toBooking(data);
+            await removeFromHostCalendar(db, booking.id, booking.scope, data.external_event);
             if (config.hooks?.onBookingCancelled) {
                 try {
                     await config.hooks.onBookingCancelled({ booking, by: input.by });

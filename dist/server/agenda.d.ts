@@ -1,3 +1,5 @@
+import { type ExternalEventRef } from "../calendars/service.js";
+import type { CalendarEventInput } from "../core/ics.js";
 import type { AgendaBooking, AgendaEventType, AgendaSlot, BookingStatus, BusyInterval } from "../core/types.js";
 import { type LivekitWebhookEvent } from "../video/livekit.js";
 import { type AgendaServerConfig } from "./config.js";
@@ -101,11 +103,22 @@ export declare function createAgendaServer(config: AgendaServerConfig): {
         updateHost(scope: string, id: string, patch: {
             active?: boolean;
             weekly?: unknown;
+            writeTarget?: {
+                connectionId: string;
+                calendarId: string;
+                calendarName?: string | null;
+            } | null;
         }): Promise<import("../core/types.js").AgendaHost | null>;
     };
     /** Connected calendars (Google, Microsoft, CalDAV, ICS). */
     calendars: {
         enabled: () => boolean;
+        writable: (provider: import("./index.js").CalendarProvider) => provider is "google" | "microsoft" | "caldav";
+        writableCalendars(scope: string, connectionId: string): Promise<import("../calendars/types.js").WritableCalendar[] | {
+            error: string;
+        }>;
+        writeEvent(scope: string, connectionId: string, calendarId: string, event: import("../calendars/types.js").HostEvent): Promise<ExternalEventRef>;
+        deleteEvent(scope: string, ref: ExternalEventRef): Promise<void>;
         providers(): Record<import("./index.js").CalendarProvider, boolean>;
         list(scope: string, hostId?: string): Promise<import("./index.js").CalendarConnection[]>;
         startOAuth(scope: string, hostId: string, provider: "google" | "microsoft", returnTo?: string): string;
@@ -132,6 +145,11 @@ export declare function createAgendaServer(config: AgendaServerConfig): {
     guestDisplayName: (booking: AgendaBooking) => string;
     roomFor: (bookingId: string) => string;
     getBooking: (id: string) => Promise<AgendaBooking | null>;
+    /**
+     * The booking as an event for the guest's own calendar: feed it to
+     * `eventIcs`, `googleCalendarLink` or `outlookCalendarLink` (from `/core`).
+     */
+    guestCalendarEvent(booking: AgendaBooking): Promise<CalendarEventInput>;
     /** Dates that can be offered in a date picker. */
     listBookableDays(scope: string, eventTypeId?: string | null): Promise<string[]>;
     getAvailability(input: {

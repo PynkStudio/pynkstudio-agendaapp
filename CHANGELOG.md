@@ -2,6 +2,15 @@
 
 Formato: [SemVer](https://semver.org). Ogni voce indica anche i passi richiesti ai progetti che usano il pacchetto.
 
+## 0.4.0 — 2026-10-02
+
+- **Calendario di destinazione per persona**: le call assegnate vengono inserite in automatico nel calendario scelto (Google, Microsoft, CalDAV/iCloud) e tolte se annullate. `hostCalendarEvent` nella config per titolo e testo; `external_event` sulla prenotazione.
+- **«Salva sul calendario» per l'ospite**: `eventIcs`, `googleCalendarLink`, `outlookCalendarLink` in `/core`; `agenda.guestCalendarEvent(booking)`; handler `guestIcs`; `guestCalendarEvent` nella config.
+- Impostazioni: scelta della destinazione per ogni persona; `GET calendarsManage?connectionId` elenca i calendari scrivibili.
+- OAuth: scope di scrittura (Google `calendar.calendarlist.readonly` + `calendar.events`; Microsoft `Calendars.ReadWrite`).
+
+**Per i progetti:** applicare `migrations/0003_host_calendar_destination.sql` **prima** di aggiornare (le query leggono `external_event` e le colonne di destinazione). Aggiornare gli scope delle app OAuth; le connessioni Google/Microsoft esistenti vanno ricollegate per poter scrivere.
+
 ## 0.3.0 — 2026-10-02
 
 Staff, capienza, calendari collegati, festività, pagina impostazioni ([ADR-0006](docs/04-decisions/adr-0006-staff-capienza-calendari.md)).

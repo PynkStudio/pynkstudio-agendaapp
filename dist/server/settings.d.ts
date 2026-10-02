@@ -31,9 +31,18 @@ export declare function createSettingsStore(opts: {
         name: string;
         email?: string | null;
     }>): Promise<AgendaHost[]>;
+    /**
+     * `writeTarget`: `null` stops writing; otherwise the connection must be
+     * one of this host's (checked by the caller against the connections list).
+     */
     updateHost(scope: string, id: string, patch: {
         active?: boolean;
         weekly?: unknown;
+        writeTarget?: {
+            connectionId: string;
+            calendarId: string;
+            calendarName?: string | null;
+        } | null;
     }): Promise<AgendaHost | null>;
 };
 export type SettingsStore = ReturnType<typeof createSettingsStore>;

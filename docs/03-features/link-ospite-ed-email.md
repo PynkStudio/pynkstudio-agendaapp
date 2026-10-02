@@ -80,3 +80,18 @@ Vedi [[adr-0004-token-ospite-derivato]].
 ## Altri usi del link
 
 Lo stesso token autorizza l'annullamento da parte dell'ospite (`guestCancel`). Se l'app lo offre, conviene metterlo nella stessa pagina.
+
+## «Salva sul calendario»
+
+Dalla 0.4.0 il cliente può aggiungere l'appuntamento al proprio calendario. Strumenti in `/core` (puri, usabili anche nei template email):
+
+| Funzione | Cosa produce |
+|---|---|
+| `agenda.guestCalendarEvent(booking)` | i dati dell'evento: titolo, inizio/fine, link personale come URL e (per le videocall) come luogo. Personalizzabile con `guestCalendarEvent` nella config |
+| `eventIcs(event)` | file `.ics` (Apple Calendar, Outlook desktop, qualsiasi app); `status: "CANCELLED"` per annullare |
+| `googleCalendarLink(event)` | link «Aggiungi a Google Calendar» |
+| `outlookCalendarLink(event, "personal" \| "work")` | link per Outlook.com o Microsoft 365 |
+
+Handler `guestIcs` (`GET ?bookingId&token`): scarica il `.ics`, autenticato dal token del link personale. Utile per un bottone «Apple / altro calendario» nell'email.
+
+Consiglio per l'email di conferma: tre link (Google, Outlook, Apple → `guestIcs`) **e** il file `.ics` in allegato, che molti client di posta mostrano come «Aggiungi al calendario».

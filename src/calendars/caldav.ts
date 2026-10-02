@@ -1,6 +1,7 @@
 import type { BusyInterval } from "../core/types.js";
 import { busyFromIcs } from "./ical.js";
-import { CalendarAuthError, type CalDavCredentials } from "./types.js";
+import { eventIcs } from "../core/ics.js";
+import { CalendarAuthError, type CalDavCredentials, type HostEvent, type WritableCalendar } from "./types.js";
 
 export const ICLOUD_CALDAV = "https://caldav.icloud.com";
 
@@ -37,6 +38,10 @@ function utcStamp(d: Date): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
+function authHeader(creds: CalDavCredentials): Record<string, string> {
+  return { Authorization: `Basic ${Buffer.from(`${creds.username}:${creds.password}`).toString("base64")}` };
+}
+
 async function dav(
   creds: CalDavCredentials,
   url: string,
@@ -47,11 +52,7 @@ async function dav(
 ): Promise<string> {
   const res = await fetchImpl(url, {
     method,
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${creds.username}:${creds.password}`).toString("base64")}`,
-      Depth: depth,
-      "Content-Type": "application/xml; charset=utf-8",
-    },
+    headers: { ...authHeader(creds), Depth: depth, "Content-Type": "application/xml; charset=utf-8" },
     body,
   });
   if (res.status === 401 || res.status === 403) throw new CalendarAuthError("CalDAV credentials refused (use an app-specific password)");
@@ -61,6 +62,11 @@ async function dav(
 
 /** Finds the event calendars of the account: principal → calendar home → collections. */
 export async function discoverCalendars(creds: CalDavCredentials, fetchImpl: typeof fetch = fetch): Promise<string[]> {
+  return (await discoverNamedCalendars(creds, fetchImpl)).map((c) => c.id);
+}
+
+/** Same as discoverCalendars, with display names: the destination picker shows them. */
+export async function discoverNamedCalendars(creds: CalDavCredentials, fetchImpl: typeof fetch = fetch): Promise<WritableCalendar[]> {
   const root = creds.server.replace(/\/+$/, "") + "/";
   const principalXml = await dav(creds, root, "PROPFIND", "0", `<d:propfind ${NS}><d:prop><d:current-user-principal/></d:prop></d:propfind>`, fetchImpl);
   const principal = hrefInside(principalXml, "current-user-principal");
@@ -77,19 +83,48 @@ export async function discoverCalendars(creds: CalDavCredentials, fetchImpl: typ
     homeUrl,
     "PROPFIND",
     "1",
-    `<d:propfind ${NS}><d:prop><d:resourcetype/><c:supported-calendar-component-set/></d:prop></d:propfind>`,
+    `<d:propfind ${NS}><d:prop><d:resourcetype/><d:displayname/><c:supported-calendar-component-set/></d:prop></d:propfind>`,
     fetchImpl,
   );
-  const calendars: string[] = [];
+  const calendars: WritableCalendar[] = [];
   for (const r of responses(listXml)) {
     const type = /<(?:[\w-]+:)?resourcetype[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?resourcetype>/i.exec(r)?.[1] ?? "";
     if (!/<(?:[\w-]+:)?calendar[\s/>]/i.test(type)) continue;
     const comps = /<(?:[\w-]+:)?supported-calendar-component-set[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?supported-calendar-component-set>/i.exec(r)?.[1];
     if (comps && !/name="VEVENT"/i.test(comps)) continue;
     const href = firstHref(r);
-    if (href) calendars.push(new URL(href, homeUrl).toString());
+    if (!href) continue;
+    const name = /<(?:[\w-]+:)?displayname[^>]*>([^<]*)</i.exec(r)?.[1];
+    const id = new URL(href, homeUrl).toString();
+    calendars.push({ id, name: name ? decodeXml(name.trim()) : decodeURIComponent(id.split("/").filter(Boolean).pop() ?? id) });
   }
   return calendars;
+}
+
+function eventUrl(calendarUrl: string, uid: string): string {
+  return `${calendarUrl.replace(/\/?$/, "/")}${encodeURIComponent(uid)}.ics`;
+}
+
+/** Writes the event as `<uid>.ics` in the chosen calendar collection. Returns the resource URL. */
+export async function caldavPutEvent(creds: CalDavCredentials, calendarUrl: string, e: HostEvent, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const url = eventUrl(calendarUrl, e.uid);
+  const res = await fetchImpl(url, {
+    method: "PUT",
+    headers: { ...authHeader(creds), "Content-Type": "text/calendar; charset=utf-8" },
+    body: eventIcs({ uid: e.uid, start: e.start, end: e.end, title: e.title, description: e.description, location: e.location }).replace(
+      "METHOD:PUBLISH\r\n",
+      "",
+    ),
+  });
+  if (res.status === 401 || res.status === 403) throw new CalendarAuthError("CalDAV credentials refused");
+  if (!res.ok) throw new Error(`CalDAV PUT failed (${res.status})`);
+  return url;
+}
+
+export async function caldavDeleteEvent(creds: CalDavCredentials, eventUrlValue: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const res = await fetchImpl(eventUrlValue, { method: "DELETE", headers: authHeader(creds) });
+  if (res.status === 401 || res.status === 403) throw new CalendarAuthError("CalDAV credentials refused");
+  if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`CalDAV DELETE failed (${res.status})`);
 }
 
 /** Busy times across the account's event calendars. Returns refreshed credentials when discovery ran. */

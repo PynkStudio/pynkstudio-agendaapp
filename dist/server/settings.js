@@ -2,8 +2,20 @@ import { assertValidEventType, MAX_CAPACITY } from "../core/availability.js";
 import { HOLIDAY_CALENDARS } from "../core/holidays.js";
 import { isDateISO, parseClock } from "../core/time.js";
 const CACHE_MS = 15_000;
+const HOST_COLUMNS = "id, scope, external_id, name, email, active, weekly, write_connection_id, write_calendar_id, write_calendar_name";
 function toHost(r) {
-    return { id: r.id, scope: r.scope, externalId: r.external_id, name: r.name, email: r.email, active: r.active, weekly: r.weekly };
+    return {
+        id: r.id,
+        scope: r.scope,
+        externalId: r.external_id,
+        name: r.name,
+        email: r.email,
+        active: r.active,
+        weekly: r.weekly ?? null,
+        writeTarget: r.write_connection_id && r.write_calendar_id
+            ? { connectionId: r.write_connection_id, calendarId: r.write_calendar_id, calendarName: r.write_calendar_name ?? null }
+            : null,
+    };
 }
 function num(value, min, max) {
     const n = Number(value);
@@ -129,7 +141,7 @@ export function createSettingsStore(opts) {
             return [];
         const { data, error } = await db
             .from(opts.tables.hosts)
-            .select("id, scope, external_id, name, email, active, weekly")
+            .select(HOST_COLUMNS)
             .eq("scope", scope)
             .order("name", { ascending: true });
         if (error) {
@@ -200,6 +212,10 @@ export function createSettingsStore(opts) {
             hostCache.delete(scope);
             return hosts(scope);
         },
+        /**
+         * `writeTarget`: `null` stops writing; otherwise the connection must be
+         * one of this host's (checked by the caller against the connections list).
+         */
         async updateHost(scope, id, patch) {
             const db = opts.db();
             if (!db)
@@ -211,12 +227,22 @@ export function createSettingsStore(opts) {
                 update.weekly = null;
             else if (patch.weekly !== undefined)
                 update.weekly = sanitizeWindows(patch.weekly);
+            if (patch.writeTarget === null) {
+                update.write_connection_id = null;
+                update.write_calendar_id = null;
+                update.write_calendar_name = null;
+            }
+            else if (patch.writeTarget) {
+                update.write_connection_id = patch.writeTarget.connectionId;
+                update.write_calendar_id = patch.writeTarget.calendarId.slice(0, 500);
+                update.write_calendar_name = patch.writeTarget.calendarName?.slice(0, 200) ?? null;
+            }
             const { data, error } = await db
                 .from(opts.tables.hosts)
                 .update(update)
                 .eq("scope", scope)
                 .eq("id", id)
-                .select("id, scope, external_id, name, email, active, weekly")
+                .select(HOST_COLUMNS)
                 .maybeSingle();
             hostCache.delete(scope);
             if (error) {

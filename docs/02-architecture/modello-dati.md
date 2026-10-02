@@ -1,6 +1,6 @@
 # Modello dati
 
-Fonti: `migrations/0001_agenda_schema.sql`, `migrations/0002_hosts_settings_calendars.sql`. RLS attiva su tutte le tabelle e **nessuna policy**: ci si accede solo con il client service-role. Vedi [[supabase]].
+Fonti: `migrations/0001_agenda_schema.sql`, `migrations/0002_hosts_settings_calendars.sql`, `migrations/0003_host_calendar_destination.sql`. RLS attiva su tutte le tabelle e **nessuna policy**: ci si accede solo con il client service-role. Vedi [[supabase]].
 
 ## `agenda_bookings`
 
@@ -31,13 +31,17 @@ where (status = 'confirmed')
 
 Due prenotazioni confermate dello stesso scope e calendario non possono sovrapporsi, anche se arrivano nello stesso millisecondo. La violazione (SQLSTATE `23P01`) diventa `slot_taken` / HTTP 409. Il calcolo degli slot (`overlapsBusy`) riproduce esattamente questa regola. Vedi [[adr-0003-sovrapposizioni-vietate-dal-database]].
 
+### `external_event`
+
+Dalla 0.4.0 (migration `0003`): `{ connectionId, provider, calendarId, eventId }` dell'evento creato nel calendario della persona assegnata; serve per eliminarlo all'annullamento ([[calendari-collegati]]).
+
 ### `host_id`
 
 Dalla 0.3.0 (migration `0002`): persona dello staff che riceve la prenotazione, `null` in modalità posti. In modalità persone `calendar = host:<host_id>`; in modalità posti `calendar = default`, `default#2`, … ([[staff-e-capienza]]).
 
 ## `agenda_hosts`
 
-Staff per scope: `external_id` (id nell'app, unico per scope), `name`, `email`, `active`, `weekly` (orari personali, `null` = come il tipo di appuntamento).
+Staff per scope: `external_id` (id nell'app, unico per scope), `name`, `email`, `active`, `weekly` (orari personali, `null` = come il tipo di appuntamento), `write_connection_id` / `write_calendar_id` / `write_calendar_name` (calendario in cui inserire le call assegnate, dalla 0.4.0).
 
 ## `agenda_event_types`
 

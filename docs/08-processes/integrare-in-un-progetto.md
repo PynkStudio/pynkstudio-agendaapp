@@ -9,7 +9,7 @@ Checklist completa. Gli esempi usano Next.js App Router; con altri host cambia s
 
 ## 2. Database
 
-Applica `migrations/0001_agenda_schema.sql` e `migrations/0002_hosts_settings_calendars.sql` (copiandole tra le migration del progetto). Verifica che esistano le tre tabelle e il vincolo `agenda_bookings_no_overlap`.
+Applica in ordine tutte le migration di `migrations/` (`0001`, `0002`, `0003`), copiandole tra quelle del progetto. Verifica che esistano le tre tabelle e il vincolo `agenda_bookings_no_overlap`.
 
 ## 3. Variabili d'ambiente
 
@@ -18,7 +18,7 @@ Applica `migrations/0001_agenda_schema.sql` e `migrations/0002_hosts_settings_ca
 ## 4. Runtime (un modulo solo server)
 
 - `createAgendaServer` con `db`, `eventTypes`, `signingSecret`, `video`, **`guestUrl`** e hook.
-- **`onBookingCreated` invia la conferma con `guestUrl`** — vedi [[link-ospite-ed-email]]. È il passo che più facilmente si dimentica.
+- **`onBookingCreated` invia la conferma con `guestUrl`** — vedi [[link-ospite-ed-email]]. È il passo che più facilmente si dimentica. Aggiungi anche «Salva sul calendario» (`guestCalendarEvent` + `eventIcs` / link Google e Outlook, allegato `.ics`).
 - `onBookingCancelled` se serve avvisare qualcuno.
 - `createAgendaHandlers` con `authorizeHost` (staff) e `requiredFields`.
 - Crea l'istanza in modo pigro se l'assenza di env non deve rompere la build.

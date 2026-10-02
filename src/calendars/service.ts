@@ -1,19 +1,24 @@
 import type { BusyInterval } from "../core/types.js";
-import { caldavBusy, discoverCalendars, ICLOUD_CALDAV } from "./caldav.js";
+import { caldavBusy, caldavDeleteEvent, caldavPutEvent, discoverCalendars, discoverNamedCalendars, ICLOUD_CALDAV } from "./caldav.js";
 import { decryptJson, encryptJson, signState, verifyState } from "./crypto.js";
-import { googleBusy } from "./google.js";
+import { googleBusy, googleCalendars, googleCreateEvent, googleDeleteEvent } from "./google.js";
 import { icsBusy, normalizeIcsUrl } from "./ics.js";
-import { microsoftBusy } from "./microsoft.js";
+import { microsoftBusy, microsoftCalendars, microsoftCreateEvent, microsoftDeleteEvent } from "./microsoft.js";
 import { authorizationUrl, exchangeCode, freshCredentials, oauthConfigured } from "./oauth.js";
 import {
   CalendarAuthError,
   type CalDavCredentials,
   type CalendarProvider,
   type CalendarsConfig,
+  type HostEvent,
   type IcsCredentials,
   type OAuthCredentials,
   type ProviderCredentials,
+  type WritableCalendar,
 } from "./types.js";
+
+/** Where an event written for a booking lives, so it can be removed on cancellation. */
+export type ExternalEventRef = { connectionId: string; provider: CalendarProvider; calendarId: string; eventId: string };
 
 type Db = { from: (table: string) => any };
 
@@ -111,8 +116,68 @@ export function createCalendarService(opts: {
     }
   }
 
+  async function loadRow(scope: string, id: string): Promise<ConnectionRow | null> {
+    const db = opts.db();
+    if (!db) return null;
+    const { data } = await db.from(opts.table).select(COLUMNS).eq("scope", scope).eq("id", id).maybeSingle();
+    return (data as ConnectionRow | null) ?? null;
+  }
+
+  /** Decrypted credentials, OAuth tokens refreshed (and saved back) when needed. */
+  async function credentialsOf(row: ConnectionRow): Promise<ProviderCredentials> {
+    const c = requireCfg();
+    const creds = decryptJson<ProviderCredentials>(c.credentialsKey, row.credentials);
+    if (row.provider !== "google" && row.provider !== "microsoft") return creds;
+    const fresh = await freshCredentials(c, row.provider, creds as OAuthCredentials);
+    if (fresh !== creds) await opts.db()?.from(opts.table).update({ credentials: encryptJson(c.credentialsKey, fresh) }).eq("id", row.id);
+    return fresh;
+  }
+
   return {
     enabled: () => Boolean(cfg),
+    /** Providers that can receive the bookings (ICS feeds are read-only). */
+    writable: (provider: CalendarProvider) => provider !== "ics",
+
+    /** Calendars of a connection that can be chosen as destination for the assigned calls. */
+    async writableCalendars(scope: string, connectionId: string): Promise<WritableCalendar[] | { error: string }> {
+      const row = await loadRow(scope, connectionId);
+      if (!row) return { error: "not_found" };
+      if (row.provider === "ics") return { error: "read_only" };
+      try {
+        const creds = await credentialsOf(row);
+        if (row.provider === "google") return await googleCalendars((creds as OAuthCredentials).accessToken, http());
+        if (row.provider === "microsoft") return await microsoftCalendars((creds as OAuthCredentials).accessToken, http());
+        return await discoverNamedCalendars(creds as CalDavCredentials, http());
+      } catch (e) {
+        opts.warn("writable calendars lookup failed", e);
+        return { error: e instanceof CalendarAuthError ? "auth_failed" : "unreachable" };
+      }
+    },
+
+    /** Writes an event into a connection's calendar. */
+    async writeEvent(scope: string, connectionId: string, calendarId: string, event: HostEvent): Promise<ExternalEventRef> {
+      const row = await loadRow(scope, connectionId);
+      if (!row) throw new Error("calendar connection not found");
+      const creds = await credentialsOf(row);
+      let eventId: string;
+      if (row.provider === "google") eventId = await googleCreateEvent((creds as OAuthCredentials).accessToken, calendarId, event, http());
+      else if (row.provider === "microsoft") eventId = await microsoftCreateEvent((creds as OAuthCredentials).accessToken, calendarId, event, http());
+      else if (row.provider === "caldav") eventId = await caldavPutEvent(creds as CalDavCredentials, calendarId, event, http());
+      else throw new Error("ICS feeds are read-only");
+      // The new event changes this host's busy times: drop cached lists.
+      for (const key of cache.keys()) if (key.startsWith(`${row.id}:`)) cache.delete(key);
+      return { connectionId: row.id, provider: row.provider, calendarId, eventId };
+    },
+
+    async deleteEvent(scope: string, ref: ExternalEventRef): Promise<void> {
+      const row = await loadRow(scope, ref.connectionId);
+      if (!row) return;
+      const creds = await credentialsOf(row);
+      if (row.provider === "google") await googleDeleteEvent((creds as OAuthCredentials).accessToken, ref.calendarId, ref.eventId, http());
+      else if (row.provider === "microsoft") await microsoftDeleteEvent((creds as OAuthCredentials).accessToken, ref.eventId, http());
+      else if (row.provider === "caldav") await caldavDeleteEvent(creds as CalDavCredentials, ref.eventId, http());
+      for (const key of cache.keys()) if (key.startsWith(`${row.id}:`)) cache.delete(key);
+    },
     /** Which providers can be offered in the settings page. */
     providers(): Record<CalendarProvider, boolean> {
       return {

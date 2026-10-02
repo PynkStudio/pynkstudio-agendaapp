@@ -112,6 +112,8 @@ export type AgendaHost = {
   active: boolean;
   /** Personal hours; null means "same as the event type". */
   weekly: WeeklyWindow[] | null;
+  /** Calendar the person's assigned bookings are written into, if chosen. */
+  writeTarget: { connectionId: string; calendarId: string; calendarName: string | null } | null;
 };
 
 /**

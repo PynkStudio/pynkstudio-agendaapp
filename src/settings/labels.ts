@@ -52,6 +52,13 @@ export type AgendaSettingsLabels = {
   saveHours: string;
   calendars: string;
   noCalendars: string;
+  writeTitle: string;
+  writeHint: string;
+  writeOff: string;
+  writeNoWritable: string;
+  writeLoading: string;
+  writeSave: string;
+  writeSaved: string;
   connectGoogle: string;
   connectMicrosoft: string;
   connectApple: string;
@@ -134,6 +141,13 @@ export const SETTINGS_LABELS: Record<"it" | "en", AgendaSettingsLabels> = {
     saveHours: "Salva orari",
     calendars: "Calendari collegati",
     noCalendars: "Nessun calendario collegato.",
+    writeTitle: "Inserisci le call nel calendario",
+    writeHint: "Le call assegnate a questa persona vengono aggiunte qui in automatico e tolte se annullate.",
+    writeOff: "Non inserire",
+    writeNoWritable: "Collega un calendario Google, Outlook o iCloud per scegliere dove inserirle (i link ICS sono solo in lettura).",
+    writeLoading: "Carico i calendari…",
+    writeSave: "Salva destinazione",
+    writeSaved: "Destinazione salvata.",
     connectGoogle: "Google Calendar",
     connectMicrosoft: "Outlook / Microsoft 365",
     connectApple: "Apple iCloud",
@@ -165,6 +179,8 @@ export const SETTINGS_LABELS: Record<"it" | "en", AgendaSettingsLabels> = {
       denied: "accesso non concesso",
       exchange_failed: "il provider ha rifiutato il collegamento",
       invalid_state: "link scaduto, riprova",
+      invalid_write_target: "calendario non valido per questa persona",
+      read_only: "questo calendario è solo in lettura",
       calendars_disabled: "calendari non configurati sul server",
       unauthorized: "sessione scaduta, accedi di nuovo",
     },
@@ -224,6 +240,13 @@ export const SETTINGS_LABELS: Record<"it" | "en", AgendaSettingsLabels> = {
     saveHours: "Save hours",
     calendars: "Connected calendars",
     noCalendars: "No calendar connected.",
+    writeTitle: "Add calls to calendar",
+    writeHint: "Calls assigned to this person are added here automatically and removed if cancelled.",
+    writeOff: "Do not add",
+    writeNoWritable: "Connect a Google, Outlook or iCloud calendar to choose where to add them (ICS links are read-only).",
+    writeLoading: "Loading calendars…",
+    writeSave: "Save destination",
+    writeSaved: "Destination saved.",
     connectGoogle: "Google Calendar",
     connectMicrosoft: "Outlook / Microsoft 365",
     connectApple: "Apple iCloud",
@@ -255,6 +278,8 @@ export const SETTINGS_LABELS: Record<"it" | "en", AgendaSettingsLabels> = {
       denied: "access not granted",
       exchange_failed: "the provider refused the connection",
       invalid_state: "link expired, try again",
+      invalid_write_target: "calendar not valid for this person",
+      read_only: "this calendar is read-only",
       calendars_disabled: "calendars are not configured on the server",
       unauthorized: "session expired, sign in again",
     },
